@@ -62,7 +62,8 @@ public class NomadEvents {
         if (player == null) return 0;
         CampData data = CampData.get(source.getLevel());
 
-        UUID uuid = data.getCampAt(player.blockPosition());
+        BlockPos underPlayer = new BlockPos((int) Math.round(player.getX()), (int) player.getY()-1, (int) player.getZ());
+        UUID uuid = data.getCampAt(underPlayer);
         if (uuid == null) {
             source.sendSuccess(() -> Component.literal("Здесь нет лагеря."), false);
             return 0;

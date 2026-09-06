@@ -1000,6 +1000,7 @@ import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.goals.ReturnToCampGoal;
 
 import java.util.UUID;
 
@@ -1023,9 +1024,10 @@ public class NomadEntity extends PathfinderMob {
     protected void registerGoals() {
         super.registerGoals();
         goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 8F));
-        goalSelector.addGoal(2, new RandomStrollGoal(this, 1.0));
-        goalSelector.addGoal(3, new RandomLookAroundGoal(this));
+        goalSelector.addGoal(1, new ReturnToCampGoal(this, 0.5));
+        goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8F));
+        goalSelector.addGoal(3, new RandomStrollGoal(this, 1.0));
+        goalSelector.addGoal(4, new RandomLookAroundGoal(this));
     }
 
     //Save Data
@@ -1058,7 +1060,7 @@ public class NomadEntity extends PathfinderMob {
     public void addAdditionalSaveData(CompoundTag pCompound) {
         super.addAdditionalSaveData(pCompound);
         pCompound.putInt(&quot;profession&quot;, this.getProfession().getId());
-        pCompound.putUUID(&quot;campUUID&quot;, this.getCampUUID());
+        if (this.getCampUUID() != null) pCompound.putUUID(&quot;campUUID&quot;, this.getCampUUID());
     }
 
     @Override
@@ -1154,7 +1156,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.NomadEntity;
 
@@ -1169,6 +1170,7 @@ public class ReturnToCampGoal extends Goal {
     private final double speed;
     private CampData data;
     private int radius;
+    int counter;
 
     public ReturnToCampGoal(Mob mob, double speed) {
         super();
@@ -1179,9 +1181,11 @@ public class ReturnToCampGoal extends Goal {
             if (nomad.level() instanceof ServerLevel serverLevel){
                 CampData data = CampData.get(serverLevel);
                 this.data = data;
-                campUUID = nomad.getCampUUID();
-                this.radius = data.getRadius(campUUID);
-                campPos = data.getBlockPos(campUUID);
+                if (nomad.getCampUUID() != null) {
+                    this.campUUID = nomad.getCampUUID();
+                    this.radius = data.getRadius(campUUID);
+                    this.campPos = data.getBlockPos(campUUID);
+                }
             }
         }
     }
@@ -1190,10 +1194,19 @@ public class ReturnToCampGoal extends Goal {
     public boolean canUse() {
         if (nomad.getCampUUID() != null){
             if (nomad.level() instanceof ServerLevel serverLevel){
-                if(data.getCampAt(campPos) != null){
-                    double distanceSqr = nomad.distanceToSqr(campPos.getX(), campPos.getY(), campPos.getZ());
-                    double radiusSqr = radius * radius;
-                    if(distanceSqr &gt; radiusSqr) return true;
+                CampData data = CampData.get(serverLevel);
+                this.data = data;
+                if (nomad.getCampUUID() != null) {
+                    this.campUUID = nomad.getCampUUID();
+                    this.radius = data.getRadius(campUUID);
+                    this.campPos = data.getBlockPos(campUUID);
+                }
+                if (campPos != null) {
+                    if (data.getCampAt(campPos) != null) {
+                        double distanceSqr = nomad.distanceToSqr(campPos.getX(), campPos.getY(), campPos.getZ());
+                        double radiusSqr = radius * radius;
+                        if (distanceSqr &gt; radiusSqr) return true;
+                    }
                 }
             }
         }
@@ -1204,6 +1217,9 @@ public class ReturnToCampGoal extends Goal {
     public void start() {
         super.start();
         nomad.getNavigation().moveTo(campPos.getX(), campPos.getY(), campPos.getZ(), speed);
+        if (!nomad.getNavigation().isDone()){
+            return;
+        }
     }
 
     @Override
@@ -1227,6 +1243,23 @@ public class ReturnToCampGoal extends Goal {
     @Override
     public EnumSet&lt;Flag&gt; getFlags() {
         return EnumSet.of(Goal.Flag.MOVE);
+    }
+
+    @Override
+    public void tick() {
+        counter++;
+        if (counter &gt;= 100){
+            this.campUUID = nomad.getCampUUID();
+            this.radius = data.getRadius(campUUID);
+            this.campPos = data.getBlockPos(campUUID);
+            counter = 0;
+        }
+        super.tick();
+    }
+
+    @Override
+    public boolean requiresUpdateEveryTick() {
+        return true;
     }
 }
 
@@ -1301,7 +1334,8 @@ public class NomadEvents {
         if (player == null) return 0;
         CampData data = CampData.get(source.getLevel());
 
-        UUID uuid = data.getCampAt(player.blockPosition());
+        BlockPos underPlayer = new BlockPos((int) Math.round(player.getX()), (int) player.getY()-1, (int) player.getZ());
+        UUID uuid = data.getCampAt(underPlayer);
         if (uuid == null) {
             source.sendSuccess(() -&gt; Component.literal(&quot;Здесь нет лагеря.&quot;), false);
             return 0;

@@ -14,6 +14,7 @@ import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.goals.ReturnToCampGoal;
 
 import java.util.UUID;
 
@@ -37,9 +38,10 @@ public class NomadEntity extends PathfinderMob {
     protected void registerGoals() {
         super.registerGoals();
         goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 8F));
-        goalSelector.addGoal(2, new RandomStrollGoal(this, 1.0));
-        goalSelector.addGoal(3, new RandomLookAroundGoal(this));
+        goalSelector.addGoal(1, new ReturnToCampGoal(this, 0.5));
+        goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8F));
+        goalSelector.addGoal(3, new RandomStrollGoal(this, 1.0));
+        goalSelector.addGoal(4, new RandomLookAroundGoal(this));
     }
 
     //Save Data
@@ -72,7 +74,7 @@ public class NomadEntity extends PathfinderMob {
     public void addAdditionalSaveData(CompoundTag pCompound) {
         super.addAdditionalSaveData(pCompound);
         pCompound.putInt("profession", this.getProfession().getId());
-        pCompound.putUUID("campUUID", this.getCampUUID());
+        if (this.getCampUUID() != null) pCompound.putUUID("campUUID", this.getCampUUID());
     }
 
     @Override
