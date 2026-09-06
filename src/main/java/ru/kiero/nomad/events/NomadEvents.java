@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -89,8 +90,12 @@ public class NomadEvents {
         if (serverPlayer == null) return 0;
         CampData data = CampData.get(source.getLevel());
 
-        UUID uuid = data.getCampAt(new BlockPos((int) serverPlayer.getX(), (int) serverPlayer.getY()-1, (int) serverPlayer.getZ()));
-        if (uuid == null) return 0;
+        BlockPos underPlayer = new BlockPos((int) Math.round(serverPlayer.getX()), (int) serverPlayer.getY()-1, (int) serverPlayer.getZ());
+        UUID uuid = data.getCampAt(underPlayer);
+        if (uuid == null) {
+            source.sendFailure(Component.literal("Рядом нет лагеря"));
+            return 0;
+        }
         data.addFriendship(uuid, serverPlayer.getUUID(), value);
         source.sendSuccess(() -> Component.literal(((value >= 0) ? "Добавлено: " : "Убрано: ") + value + " очков дружбы"), false);
         return 1;
