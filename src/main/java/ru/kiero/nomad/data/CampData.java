@@ -3,13 +3,9 @@ package ru.kiero.nomad.data;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import ru.kiero.nomad.Nomad;
-import ru.kiero.nomad.entity.NomadEntity;
 
 import java.util.*;
 

@@ -19,8 +19,8 @@ import java.util.UUID;
 
 public class NomadEntity extends PathfinderMob {
 
-    public static EntityDataAccessor<Integer> DATA_PROFESSION_ID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.INT);
-    public static EntityDataAccessor<String> CAMP_UUID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Integer> DATA_PROFESSION_ID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<String> CAMP_UUID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.STRING);
 
     private CampData data;
 
@@ -55,7 +55,8 @@ public class NomadEntity extends PathfinderMob {
         return Profession.fromId(this.entityData.get(DATA_PROFESSION_ID));
     }
     public UUID getCampUUID(){
-        return UUID.fromString(this.entityData.get(CAMP_UUID));
+        if (!this.entityData.get(CAMP_UUID).isEmpty()) return UUID.fromString(this.entityData.get(CAMP_UUID));
+        return null;
     }
 
     //Setter
@@ -81,7 +82,7 @@ public class NomadEntity extends PathfinderMob {
             this.setProfession(Profession.fromId(pCompound.getInt("profession")));
         }
         if (pCompound.contains("campUUID")){
-            this.setProfession(Profession.fromId(pCompound.getInt("campUUID")));
+            this.setCampUUID(pCompound.getUUID("campUUID"));
         }
     }
 }

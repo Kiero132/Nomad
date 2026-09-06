@@ -41,7 +41,9 @@ public class NomadEvents {
                     .then(Commands.argument("id", IntegerArgumentType.integer(0, 3))
                             .executes(ctx -> setProfession(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "id")))))
                 .then(Commands.literal("nomadinfo")
-                        .executes(ctx -> nomadInfo(ctx.getSource()))));
+                        .executes(ctx -> nomadInfo(ctx.getSource())))
+                .then(Commands.literal("bind")
+                        .executes(ctx -> setBind(ctx.getSource()))));
     }
 
     private static int create(CommandSourceStack source) {
@@ -137,6 +139,32 @@ public class NomadEvents {
         if (nomad != null){
             source.sendSuccess(() -> Component.literal("Номад: " + nomad.getUUID()), false);
             source.sendSuccess(() -> Component.literal("Профессия: " + nomad.getProfession().getId()), false);
+            source.sendSuccess(() -> Component.literal("UUID: " + nomad.getCampUUID()), false);
+            return 1;
+        }
+        source.sendFailure(Component.literal("Рядом нет номадов"));
+        return 0;
+    }
+
+    private static int setBind(CommandSourceStack source){
+        ServerPlayer serverPlayer = source.getPlayer();
+        CampData data = CampData.get(serverPlayer.serverLevel());
+        if (serverPlayer == null) return 0;
+
+        NomadEntity nomad = serverPlayer.level().getNearestEntity(
+                NomadEntity.class,
+                TargetingConditions.DEFAULT,
+                serverPlayer,
+                serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(),
+                serverPlayer.getBoundingBox().inflate(5.0)
+        );
+
+        BlockPos underPlayer = new BlockPos((int) Math.round(serverPlayer.getX()), (int) serverPlayer.getY()-1, (int) serverPlayer.getZ());
+        UUID uuid = data.getCampAt(underPlayer);
+
+        if (nomad != null && uuid != null){
+            nomad.setCampUUID(uuid);
+            source.sendSuccess(() -> Component.literal("Номад привязан: " + nomad.getCampUUID()), false);
             return 1;
         }
         source.sendFailure(Component.literal("Рядом нет номадов"));

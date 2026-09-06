@@ -719,13 +719,9 @@ package ru.kiero.nomad.data;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import ru.kiero.nomad.Nomad;
-import ru.kiero.nomad.entity.NomadEntity;
 
 import java.util.*;
 
@@ -1009,8 +1005,8 @@ import java.util.UUID;
 
 public class NomadEntity extends PathfinderMob {
 
-    public static EntityDataAccessor&lt;Integer&gt; DATA_PROFESSION_ID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.INT);
-    public static EntityDataAccessor&lt;String&gt; CAMP_UUID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor&lt;Integer&gt; DATA_PROFESSION_ID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor&lt;String&gt; CAMP_UUID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.STRING);
 
     private CampData data;
 
@@ -1045,7 +1041,8 @@ public class NomadEntity extends PathfinderMob {
         return Profession.fromId(this.entityData.get(DATA_PROFESSION_ID));
     }
     public UUID getCampUUID(){
-        return UUID.fromString(this.entityData.get(CAMP_UUID));
+        if (!this.entityData.get(CAMP_UUID).isEmpty()) return UUID.fromString(this.entityData.get(CAMP_UUID));
+        return null;
     }
 
     //Setter
@@ -1071,7 +1068,7 @@ public class NomadEntity extends PathfinderMob {
             this.setProfession(Profession.fromId(pCompound.getInt(&quot;profession&quot;)));
         }
         if (pCompound.contains(&quot;campUUID&quot;)){
-            this.setProfession(Profession.fromId(pCompound.getInt(&quot;campUUID&quot;)));
+            this.setCampUUID(pCompound.getUUID(&quot;campUUID&quot;));
         }
     }
 }
@@ -1194,7 +1191,9 @@ public class NomadEvents {
                     .then(Commands.argument(&quot;id&quot;, IntegerArgumentType.integer(0, 3))
                             .executes(ctx -&gt; setProfession(ctx.getSource(), IntegerArgumentType.getInteger(ctx, &quot;id&quot;)))))
                 .then(Commands.literal(&quot;nomadinfo&quot;)
-                        .executes(ctx -&gt; nomadInfo(ctx.getSource()))));
+                        .executes(ctx -&gt; nomadInfo(ctx.getSource())))
+                .then(Commands.literal(&quot;bind&quot;)
+                        .executes(ctx -&gt; setBind(ctx.getSource()))));
     }
 
     private static int create(CommandSourceStack source) {
@@ -1290,6 +1289,32 @@ public class NomadEvents {
         if (nomad != null){
             source.sendSuccess(() -&gt; Component.literal(&quot;Номад: &quot; + nomad.getUUID()), false);
             source.sendSuccess(() -&gt; Component.literal(&quot;Профессия: &quot; + nomad.getProfession().getId()), false);
+            source.sendSuccess(() -&gt; Component.literal(&quot;UUID: &quot; + nomad.getCampUUID()), false);
+            return 1;
+        }
+        source.sendFailure(Component.literal(&quot;Рядом нет номадов&quot;));
+        return 0;
+    }
+
+    private static int setBind(CommandSourceStack source){
+        ServerPlayer serverPlayer = source.getPlayer();
+        CampData data = CampData.get(serverPlayer.serverLevel());
+        if (serverPlayer == null) return 0;
+
+        NomadEntity nomad = serverPlayer.level().getNearestEntity(
+                NomadEntity.class,
+                TargetingConditions.DEFAULT,
+                serverPlayer,
+                serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(),
+                serverPlayer.getBoundingBox().inflate(5.0)
+        );
+
+        BlockPos underPlayer = new BlockPos((int) Math.round(serverPlayer.getX()), (int) serverPlayer.getY()-1, (int) serverPlayer.getZ());
+        UUID uuid = data.getCampAt(underPlayer);
+
+        if (nomad != null &amp;&amp; uuid != null){
+            nomad.setCampUUID(uuid);
+            source.sendSuccess(() -&gt; Component.literal(&quot;Номад привязан: &quot; + nomad.getCampUUID()), false);
             return 1;
         }
         source.sendFailure(Component.literal(&quot;Рядом нет номадов&quot;));
