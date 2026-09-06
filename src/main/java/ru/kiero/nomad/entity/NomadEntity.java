@@ -33,7 +33,7 @@ public class NomadEntity extends PathfinderMob {
     }
 
     public static AttributeSupplier.Builder createAttributes(){
-        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 20D).add(Attributes.MOVEMENT_SPEED, 0.25D);
+        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 20D).add(Attributes.MOVEMENT_SPEED, 0.25D).add(Attributes.ATTACK_DAMAGE, 5);
     }
 
     @Override
@@ -44,10 +44,10 @@ public class NomadEntity extends PathfinderMob {
             this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Monster.class, true));
             goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.0, true));
         }
-        goalSelector.addGoal(1, new ReturnToCampGoal(this, 0.5));
-        goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8F));
-        goalSelector.addGoal(3, new RandomStrollGoal(this, 1.0));
-        goalSelector.addGoal(4, new RandomLookAroundGoal(this));
+        goalSelector.addGoal(2, new ReturnToCampGoal(this, 0.5));
+        goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8F));
+        goalSelector.addGoal(4, new RandomStrollGoal(this, 1.0));
+        goalSelector.addGoal(5, new RandomLookAroundGoal(this));
     }
 
     //Save Data
