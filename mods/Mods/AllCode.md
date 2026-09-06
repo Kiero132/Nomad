@@ -350,13 +350,13 @@ public class TotemBlock extends Block implements EntityBlock {
 
     @Override
     public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pMovedByPiston) {
-        super.onRemove(pState, pLevel, pPos, pNewState, pMovedByPiston);
         if(!pState.is(pNewState.getBlock())){
             if(pLevel.getBlockEntity(pPos) instanceof TotemBlockEntity be &amp;&amp; pLevel instanceof ServerLevel serverLevel){
                 CampData data = CampData.get(serverLevel);
                 if(data.getCampAt(pPos) != null) data.removeCamp(data.getCampAt(pPos));
             }
         }
+        super.onRemove(pState, pLevel, pPos, pNewState, pMovedByPiston);
     }
 
     @Override
@@ -539,6 +539,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.RelationStage;
 
 public class TotemMainScreen extends Screen {
 
@@ -615,6 +616,9 @@ public class TotemMainScreen extends Screen {
         pGuiGraphics.blit(BG, leftPos+22, topPos+52, 0, imageHeight+1, barWidth, 8);
         drawSmallString(pGuiGraphics, this.font, &quot;-100&quot;, this.leftPos+15, this.topPos+62, 0x431c10, false, 0.5f);
         drawSmallString(pGuiGraphics, this.font, &quot;100&quot;, this.leftPos+100, this.topPos+62, 0x431c10, false, 0.5f);
+
+        text = RelationStage.of(friendship).toString();
+        drawSmallString(pGuiGraphics, this.font, RelationStage.of(friendship).toString(), this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+62, 0x431c10, false, 0.5f);
 
         //Level
         text = &quot;Уровень: &quot; + String.valueOf(levelOf);
@@ -990,6 +994,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
@@ -998,13 +1003,20 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import ru.kiero.nomad.data.CampData;
+
+import java.util.UUID;
 
 public class NomadEntity extends PathfinderMob {
 
     public static EntityDataAccessor&lt;Integer&gt; DATA_PROFESSION_ID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.INT);
+    public static EntityDataAccessor&lt;String&gt; CAMP_UUID = SynchedEntityData.defineId(NomadEntity.class, EntityDataSerializers.STRING);
+
+    private CampData data;
 
     public NomadEntity(EntityType&lt;? extends PathfinderMob&gt; pEntityType, Level pLevel) {
         super(pEntityType, pLevel);
+        if(pLevel instanceof ServerLevel serverLevel) data = CampData.get(serverLevel);
     }
 
     public static AttributeSupplier.Builder createAttributes(){
@@ -1025,16 +1037,23 @@ public class NomadEntity extends PathfinderMob {
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(DATA_PROFESSION_ID, Profession.NONE.getId());
+        this.entityData.define(CAMP_UUID, &quot;&quot;);
     }
 
     //Getter
     public Profession getProfession(){
         return Profession.fromId(this.entityData.get(DATA_PROFESSION_ID));
     }
+    public UUID getCampUUID(){
+        return UUID.fromString(this.entityData.get(CAMP_UUID));
+    }
 
     //Setter
     public void setProfession(Profession profession){
         this.entityData.set(DATA_PROFESSION_ID, profession.getId());
+    }
+    public void setCampUUID(UUID uuid){
+        this.entityData.set(CAMP_UUID, uuid.toString());
     }
 
     //NBT
@@ -1042,6 +1061,7 @@ public class NomadEntity extends PathfinderMob {
     public void addAdditionalSaveData(CompoundTag pCompound) {
         super.addAdditionalSaveData(pCompound);
         pCompound.putInt(&quot;profession&quot;, this.getProfession().getId());
+        pCompound.putUUID(&quot;campUUID&quot;, this.getCampUUID());
     }
 
     @Override
@@ -1049,6 +1069,9 @@ public class NomadEntity extends PathfinderMob {
         super.readAdditionalSaveData(pCompound);
         if (pCompound.contains(&quot;profession&quot;)){
             this.setProfession(Profession.fromId(pCompound.getInt(&quot;profession&quot;)));
+        }
+        if (pCompound.contains(&quot;campUUID&quot;)){
+            this.setProfession(Profession.fromId(pCompound.getInt(&quot;campUUID&quot;)));
         }
     }
 }
@@ -1090,6 +1113,41 @@ public enum Profession {
 
 ---
 
+## src/main/java/ru/kiero/nomad/entity/RelationStage.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.entity;
+
+public enum RelationStage {
+    ALLY(80),
+    RESPECT(50),
+    FRIEND(1),
+    NEUTRAL(0),
+    DISLIKE(-49),
+    ENEMY(-100);
+
+    private final int relation;
+
+    RelationStage(int relation){
+        this.relation = relation;
+    }
+
+    public int getId(){
+        return relation;
+    }
+
+    public static RelationStage of(int relation){
+        for (RelationStage p : values()){
+            if(relation &gt;= p.relation) return p;
+        }
+        return NEUTRAL;
+    }
+}
+
+</code></pre>
+
+---
+
 ## src/main/java/ru/kiero/nomad/events/NomadEvents.java
 
 <pre><code class="language-java">
@@ -1098,9 +1156,11 @@ package ru.kiero.nomad.events;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -1183,8 +1243,12 @@ public class NomadEvents {
         if (serverPlayer == null) return 0;
         CampData data = CampData.get(source.getLevel());
 
-        UUID uuid = data.getCampAt(serverPlayer.blockPosition());
-        if (uuid == null) return 0;
+        BlockPos underPlayer = new BlockPos((int) Math.round(serverPlayer.getX()), (int) serverPlayer.getY()-1, (int) serverPlayer.getZ());
+        UUID uuid = data.getCampAt(underPlayer);
+        if (uuid == null) {
+            source.sendFailure(Component.literal(&quot;Рядом нет лагеря&quot;));
+            return 0;
+        }
         data.addFriendship(uuid, serverPlayer.getUUID(), value);
         source.sendSuccess(() -&gt; Component.literal(((value &gt;= 0) ? &quot;Добавлено: &quot; : &quot;Убрано: &quot;) + value + &quot; очков дружбы&quot;), false);
         return 1;
