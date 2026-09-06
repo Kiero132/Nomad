@@ -33,13 +33,13 @@ public class TotemBlock extends Block implements EntityBlock {
 
     @Override
     public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pMovedByPiston) {
-        super.onRemove(pState, pLevel, pPos, pNewState, pMovedByPiston);
         if(!pState.is(pNewState.getBlock())){
             if(pLevel.getBlockEntity(pPos) instanceof TotemBlockEntity be && pLevel instanceof ServerLevel serverLevel){
                 CampData data = CampData.get(serverLevel);
                 if(data.getCampAt(pPos) != null) data.removeCamp(data.getCampAt(pPos));
             }
         }
+        super.onRemove(pState, pLevel, pPos, pNewState, pMovedByPiston);
     }
 
     @Override

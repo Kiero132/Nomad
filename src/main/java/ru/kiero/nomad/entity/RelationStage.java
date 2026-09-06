@@ -1,12 +1,12 @@
 package ru.kiero.nomad.entity;
 
 public enum RelationStage {
-    ENEMY(-100),
-    DISLIKE(-49),
-    NEUTRAL(0),
-    FRIEND(1),
+    ALLY(80),
     RESPECT(50),
-    ALLY(80);
+    FRIEND(1),
+    NEUTRAL(0),
+    DISLIKE(-49),
+    ENEMY(-100);
 
     private final int relation;
 
