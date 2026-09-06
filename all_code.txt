@@ -1,0 +1,1018 @@
+﻿===== src\main\java\ru\kiero\nomad\Nomad.java =====
+package ru.kiero.nomad;
+
+import net.minecraft.client.renderer.entity.EntityRenderers;
+import net.minecraftforge.client.event.EntityRenderersEvent;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import ru.kiero.nomad.client.NomadRenderer;
+import ru.kiero.nomad.client.model.NomadModel;
+import ru.kiero.nomad.entity.NomadEntity;
+import ru.kiero.nomad.init.*;
+import ru.kiero.nomad.networking.NomadNetworking;
+
+@Mod("nomad")
+public class Nomad {
+
+    public static final String MOD_ID = "nomad";
+
+    public Nomad() {
+        IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
+        modBus.addListener(this::clientSetup);
+        modBus.addListener(this::commonSetup);
+
+        NomadBlocks.reg(modBus);
+        NomadItems.reg(modBus);
+        NomadCreativeTab.reg(modBus);
+        NomadBlockEntities.reg(modBus);
+        NomadMenuTypes.reg(modBus);
+        NomadEntities.reg(modBus);
+    }
+
+    private void clientSetup(FMLClientSetupEvent event){
+
+    }
+
+    private void commonSetup(FMLCommonSetupEvent event){
+        NomadNetworking.reg();
+    }
+
+    private void regLayerDefenitions(EntityRenderersEvent.RegisterLayerDefinitions event){
+        event.registerLayerDefinition(NomadModel.LAYER_LOCATION, NomadModel::createBodyLayer);
+    }
+
+    private void regRenderers(EntityRenderersEvent.RegisterRenderers event){
+        event.registerEntityRenderer(NomadEntities.NOMAD.get(), NomadRenderer::new);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\blocks\TotemBlock.java =====
+package ru.kiero.nomad.blocks;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.network.PacketDistributor;
+import org.jetbrains.annotations.Nullable;
+import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.networking.MainScreenPacket;
+import ru.kiero.nomad.networking.NomadNetworking;
+
+import java.util.UUID;
+
+public class TotemBlock extends Block implements EntityBlock {
+
+    public TotemBlock(Properties pProperties) {
+        super(pProperties);
+    }
+
+    @Override
+    public @Nullable BlockEntity newBlockEntity(BlockPos pPos, BlockState pState) {
+        return new TotemBlockEntity(pPos, pState);
+    }
+
+    @Override
+    public void onRemove(BlockState pState, Level pLevel, BlockPos pPos, BlockState pNewState, boolean pMovedByPiston) {
+        super.onRemove(pState, pLevel, pPos, pNewState, pMovedByPiston);
+        if(!pState.is(pNewState.getBlock())){
+            if(pLevel.getBlockEntity(pPos) instanceof TotemBlockEntity be && pLevel instanceof ServerLevel serverLevel){
+                CampData data = CampData.get(serverLevel);
+                if(data.getCampAt(pPos) != null) data.removeCamp(data.getCampAt(pPos));
+            }
+        }
+    }
+
+    @Override
+    public InteractionResult use(BlockState pState, Level pLevel, BlockPos pPos, Player pPlayer, InteractionHand pHand, BlockHitResult pHit) {
+        if(pLevel.isClientSide()) return InteractionResult.SUCCESS;
+        if(pLevel.getBlockEntity(pPos) instanceof TotemBlockEntity be && pPlayer instanceof ServerPlayer serverPlayer){
+            //NetworkHooks.openScreen(serverPlayer, be, pPos);
+            CampData data = CampData.get(serverPlayer.serverLevel());
+            if (data.getCampAt(pPos) == null) {
+                data.createCamp(pPos);
+                be.setUuid(data.getCampAt(pPos));
+                be.setChanged();
+            }
+            UUID camp = data.getCampAt(pPos);
+            NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer), new MainScreenPacket(
+                    data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getFriendship(camp, pPlayer.getUUID()), data.getRadius(camp),
+                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp)));
+            return InteractionResult.CONSUME;
+        }
+        return InteractionResult.PASS;
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\blocks\TotemBlockEntity.java =====
+package ru.kiero.nomad.blocks;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import ru.kiero.nomad.init.NomadBlockEntities;
+
+import java.util.UUID;
+
+public class TotemBlockEntity extends BlockEntity implements ContainerData {
+
+    private UUID uuid;
+
+    private final ItemStackHandler items = new ItemStackHandler(2){
+        @Override
+        protected void onContentsChanged(int slot) {
+            super.onContentsChanged(slot);
+            setChanged();
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+            return super.isItemValid(slot, stack);
+        }
+    };
+
+    public TotemBlockEntity(BlockPos pPos, BlockState pBlockState) {
+        super(NomadBlockEntities.TOTEM.get(), pPos, pBlockState);
+
+    }
+
+    @Override
+    protected void saveAdditional(CompoundTag pTag) {
+        super.saveAdditional(pTag);
+        //pTag.put("items", items.serializeNBT());
+        if(this.uuid != null) pTag.putUUID("uuid", this.uuid);
+    }
+
+    @Override
+    public void load(CompoundTag pTag) {
+        super.load(pTag);
+        //items.deserializeNBT(pTag.getCompound("items"));
+        if(pTag.hasUUID("uuid")) this.uuid = pTag.getUUID("uuid");
+    }
+
+
+    //ContainerData
+    @Override
+    public int get(int pIndex) {
+        return 0;
+    }
+
+    @Override
+    public void set(int pIndex, int pValue) {
+
+    }
+
+    @Override
+    public int getCount() {
+        return 1;
+    }
+
+    public UUID getUuid() {
+        return uuid;
+    }
+
+    public void setUuid(UUID uuid) {
+        this.uuid = uuid;
+        setChanged();
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\client\NomadClient.java =====
+package ru.kiero.nomad.client;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraftforge.network.NetworkEvent;
+
+import java.util.function.Supplier;
+
+public class NomadClient {
+
+    public static void openScreen(Supplier<NetworkEvent.Context> sup, Screen screen){
+        NetworkEvent.Context ctx = sup.get();
+        ctx.enqueueWork(() -> Minecraft.getInstance().setScreen(screen));
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\client\NomadRenderer.java =====
+package ru.kiero.nomad.client;
+
+import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import ru.kiero.nomad.client.model.NomadModel;
+import ru.kiero.nomad.entity.NomadEntity;
+
+public class NomadRenderer extends MobRenderer<NomadEntity, NomadModel> {
+
+    public NomadRenderer(EntityRendererProvider.Context pContext) {
+        super(pContext, new NomadModel(pContext.bakeLayer(NomadModel.LAYER_LOCATION)), 0.5f);
+    }
+    @Override
+    public ResourceLocation getTextureLocation(NomadEntity pEntity) {
+        return new ResourceLocation("textures/entity/nomad.png");
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\client\TotemMainScreen.java =====
+package ru.kiero.nomad.client;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.data.CampData;
+
+public class TotemMainScreen extends Screen {
+
+    private final int imageWidth;
+    private final int imageHeight;
+    private int leftPos;
+    private int topPos;
+
+    private final String lable;
+    private final int levelOf;
+    private final int exp;
+    private final int friendship;
+    private final int radius;
+
+    private final int food;
+    private final int wood;
+    private final int stone;
+    private final int leather;
+    private final int rare;
+
+    public static final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, "textures/gui/totem.png");
+
+    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare) {
+        super(pTitle);
+        this.imageWidth = 132;
+        this.imageHeight = 233;
+
+        this.lable = lable;
+        this.levelOf = levelOf;
+        this.exp = exp;
+        this.friendship = friendship;
+        this.radius = radius;
+
+        this.food = food;
+        this.wood = wood;
+        this.stone = stone;
+        this.leather = leather;
+        this.rare = rare;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        //this.leftPos = (this.width-this.imageWidth)/2-this.imageWidth/2;
+        this.leftPos = width/2-imageWidth/2;
+        this.topPos = (this.height-imageHeight)/2;
+    }
+
+    @Override
+    public void render(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+        renderBackground(pGuiGraphics);
+        super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics pGuiGraphics) {
+        super.renderBackground(pGuiGraphics);
+        RenderSystem.setShaderTexture(0, BG);
+        pGuiGraphics.blit(BG, leftPos, topPos, 0, 0, this.imageWidth, this.imageHeight);
+
+
+        String text = "РџР»РµРјСЏ " + lable;
+        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+19, this.topPos+18,0xf5f0e8, false, 0.7f);
+
+        text = "РЈСЂРѕРІРµРЅСЊ Р»Р°РіРµСЂСЏ: " + String.valueOf(levelOf);
+        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+32, this.topPos+32, 0x35120a, false, 0.4f);
+
+        text = "РћС‚РЅРѕС€РµРЅРёРµ Рє РІР°Рј: " + String.valueOf(friendship);
+        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+45, 0x35120a, false, 0.8f);
+
+        //Friendship progressbar
+        float barWidthTemp = (float) (friendship + 100) /200;
+        int barWidth = Math.round(84*barWidthTemp);
+        pGuiGraphics.blit(BG, leftPos+22, topPos+52, 0, imageHeight+1, barWidth, 8);
+        drawSmallString(pGuiGraphics, this.font, "-100", this.leftPos+15, this.topPos+62, 0x431c10, false, 0.5f);
+        drawSmallString(pGuiGraphics, this.font, "100", this.leftPos+100, this.topPos+62, 0x431c10, false, 0.5f);
+
+        //Level
+        text = "РЈСЂРѕРІРµРЅСЊ: " + String.valueOf(levelOf);
+        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+72,0x431c10, false, 0.7f);
+
+        //Exp Progressbar
+        barWidthTemp = (float) exp/CampData.expForLevel.get(levelOf-1);
+        barWidth = Math.round(40*barWidthTemp);
+        pGuiGraphics.blit(BG, leftPos+22, topPos+52, 0, topPos+242, barWidth, 8);
+
+        //Exp
+        text = String.valueOf(exp) + "/" + String.valueOf(CampData.expForLevel.get(levelOf-1));
+        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+85,0x431c10, false, 0.5f);
+
+        //TODO: Citizen count
+
+        text = "РўРµСЂСЂРёС‚РѕСЂРёСЏ: "+radius+" Р±Р»РѕРєРѕРІ";
+        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+38, this.topPos+114,0x431c10, false, 0.65f);
+
+        //Resources
+        drawSmallString(pGuiGraphics, this.font, "Р•РґР°", this.leftPos+24, this.topPos+140,0x431c10, false, 0.5f);
+        drawSmallString(pGuiGraphics, this.font, normalizeText(food), this.leftPos+33-this.font.width(normalizeText(food)), this.topPos+145,0x431c10, false, 0.5f);
+
+        drawSmallString(pGuiGraphics, this.font, "Р”РµСЂРµРІРѕ", this.leftPos+40, this.topPos+140,0x431c10, false, 0.5f);
+        drawSmallString(pGuiGraphics, this.font, normalizeText(wood), this.leftPos+54-this.font.width(normalizeText(wood)), this.topPos+145,0x431c10, false, 0.5f);
+
+        drawSmallString(pGuiGraphics, this.font, "РљР°РјРµРЅСЊ", this.leftPos+61, this.topPos+140,0x431c10, false, 0.5f);
+        drawSmallString(pGuiGraphics, this.font, normalizeText(stone), this.leftPos+74-this.font.width(normalizeText(stone)), this.topPos+145,0x431c10, false, 0.5f);
+
+        drawSmallString(pGuiGraphics, this.font, "РљРѕР¶Р°", this.leftPos+83, this.topPos+140,0x431c10, false, 0.5f);
+        drawSmallString(pGuiGraphics, this.font, normalizeText(leather), this.leftPos+94-this.font.width(normalizeText(leather)), this.topPos+145,0x431c10, false, 0.5f);
+
+        drawSmallString(pGuiGraphics, this.font, "Р РµРґРєРѕРµ", this.leftPos+100, this.topPos+140,0x431c10, false, 0.5f);
+        drawSmallString(pGuiGraphics, this.font, normalizeText(rare), this.leftPos+113-this.font.width(normalizeText(rare)), this.topPos+145,0x431c10, false, 0.5f);
+
+    }
+
+    private void drawSmallString(GuiGraphics guiGraphics, Font font, String text, int x, int y, int color, boolean shadow, float scale){
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().scale(scale, scale, 1.0f);
+
+        guiGraphics.drawString(font, text, x/scale, y/scale, color, shadow);
+
+        guiGraphics.pose().popPose();
+    }
+
+    public String normalizeText(int value){
+        if (value < 1000){
+            return String.valueOf(value);
+        }else{
+            return String.valueOf(value/1000)+"k";
+        }
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\client\model\NomadModel.java =====
+package ru.kiero.nomad.client.model;
+
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.geom.builders.MeshDefinition;
+import net.minecraft.resources.ResourceLocation;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.entity.NomadEntity;
+
+public class NomadModel extends HumanoidModel<NomadEntity> {
+
+    public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation(Nomad.MOD_ID, "nomad"), "main");
+
+    public NomadModel(ModelPart pRoot) {
+        super(pRoot);
+    }
+
+    public static LayerDefinition createBodyLayer(){
+        MeshDefinition meshDefenition = HumanoidModel.createMesh(CubeDeformation.NONE, 0f);
+        return LayerDefinition.create(meshDefenition, 128, 64);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\data\CampData.java =====
+package ru.kiero.nomad.data;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.saveddata.SavedData;
+import ru.kiero.nomad.Nomad;
+
+import java.util.*;
+
+public class CampData extends SavedData {
+
+    private Map<UUID, CompoundTag> CAMPS = new HashMap<>();
+    private int maxLevel = 5;
+
+    public static final String DATA_NAME = Nomad.MOD_ID + "_camp";
+    public static final List<Integer> expForLevel = List.of(100, 200, 500, 1000, 2000);
+
+    @Override
+    public CompoundTag save(CompoundTag pCompoundTag) {
+        ListTag list = new ListTag();
+        for(UUID uuid : CAMPS.keySet()){
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID("uuid", uuid);
+            tag.putLong("blockPos", CAMPS.get(uuid).getLong("blockPos"));
+
+            //Friendship MAP<PlayerUUID, Integer>
+            ListTag playerList = new ListTag();
+
+            for (int i=0; i<CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).size(); i++){
+                CompoundTag playerTag = new CompoundTag();
+                playerTag.putUUID("playerUUID", CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i).getUUID("playerUUID"));
+                playerTag.putInt("playerValue", CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i).getInt("playerValue"));
+                playerList.add(playerTag);
+            }
+            tag.put("friendship", playerList);
+
+            CompoundTag resources = new CompoundTag();
+            resources.putInt("food", CAMPS.get(uuid).getCompound("resources").getInt("food"));
+            resources.putInt("wood", CAMPS.get(uuid).getCompound("resources").getInt("wood"));
+            resources.putInt("stone", CAMPS.get(uuid).getCompound("resources").getInt("stone"));
+            resources.putInt("leather", CAMPS.get(uuid).getCompound("resources").getInt("leather"));
+            resources.putInt("rare", CAMPS.get(uuid).getCompound("resources").getInt("rare"));
+            tag.put("resources", resources);
+
+            tag.putInt("radius", CAMPS.get(uuid).getInt("radius"));
+            tag.putString("name", CAMPS.get(uuid).getString("name"));
+            tag.putInt("level", CAMPS.get(uuid).getInt("level"));
+            tag.putInt("exp", CAMPS.get(uuid).getInt("exp"));
+
+
+            list.add(tag);
+        }
+        pCompoundTag.put("data", list);
+        return pCompoundTag;
+    }
+
+    private static CampData load(CompoundTag tag){
+        CampData data = new CampData();
+        ListTag list = tag.getList("data", ListTag.TAG_COMPOUND);
+
+        for (int i=0; i<list.size(); i++){
+            CompoundTag uuidTag = list.getCompound(i);
+            CompoundTag tagP = new CompoundTag();
+
+            tagP.putLong("blockPos", BlockPos.of(uuidTag.getLong("blockPos")).asLong());
+
+            ListTag playerList = uuidTag.getList("friendship", ListTag.TAG_COMPOUND);
+            ListTag newPlayerList = new ListTag();
+
+            for (int j=0; j<playerList.size(); j++){
+                CompoundTag playerTag = playerList.getCompound(j);
+                CompoundTag newTag = new CompoundTag();
+
+                newTag.putUUID("playerUUID", playerTag.getUUID("playerUUID"));
+                newTag.putInt("playerValue", playerTag.getInt("playerValue"));
+                newPlayerList.add(newTag);
+            }
+            tagP.put("friendship", newPlayerList);
+
+            CompoundTag resources = new CompoundTag();
+            resources.putInt("food", uuidTag.getCompound("resources").getInt("food"));
+            resources.putInt("wood", uuidTag.getCompound("resources").getInt("wood"));
+            resources.putInt("stone", uuidTag.getCompound("resources").getInt("stone"));
+            resources.putInt("leather", uuidTag.getCompound("resources").getInt("leather"));
+            resources.putInt("rare", uuidTag.getCompound("resources").getInt("rare"));
+            tagP.put("resources", resources);
+
+            tagP.putInt("radius", uuidTag.getInt("radius"));
+            tagP.putString("name", uuidTag.getString("name"));
+            tagP.putInt("level", uuidTag.getInt("level"));
+            tagP.putInt("exp", uuidTag.getInt("exp"));
+
+            data.CAMPS.put(uuidTag.getUUID("uuid"), tagP);
+        }
+        return data;
+    }
+
+    public static CampData get(ServerLevel serverLevel){
+        return serverLevel.getDataStorage().computeIfAbsent(CampData::load, CampData::new, DATA_NAME);
+    }
+
+    public UUID createCamp(BlockPos blockPos){
+        UUID uuid = UUID.randomUUID();
+        CompoundTag tag = new CompoundTag();
+        tag.putLong("blockPos", blockPos.asLong());
+        tag.putInt("radius", getRadiusOf(1)); //Test radius
+        tag.putString("name", nameGenerate());
+        tag.putInt("level", 1);
+        tag.putInt("exp", 0);
+
+        CompoundTag resources = new CompoundTag();
+        resources.putInt("food", 0);
+        resources.putInt("wood", 0);
+        resources.putInt("stone", 0);
+        resources.putInt("leather", 0);
+        resources.putInt("rare", 0);
+        tag.put("resources", resources);
+
+        CAMPS.put(uuid, tag);
+        setDirty();
+
+        return uuid;
+    }
+    public void removeCamp(UUID uuid){
+        if(CAMPS.containsKey(uuid)) CAMPS.remove(uuid);
+        setDirty();
+    }
+
+    public UUID getCampAt(BlockPos pos){
+        for (UUID uuid : CAMPS.keySet()){
+            if(BlockPos.of(CAMPS.get(uuid).getLong("blockPos")).equals(pos)){
+                return uuid;
+            }
+        }
+        return null;
+    }
+
+    //Р“РµС‚С‚РµСЂС‹
+    public BlockPos getBlockPos(UUID uuid)      {return BlockPos.of(CAMPS.get(uuid).getLong("blockPos"));}
+    public int getRadius(UUID uuid)             {return CAMPS.get(uuid).getInt("radius");}
+    public String getName(UUID uuid)            {return CAMPS.get(uuid).getString("name");}
+    public int getLevelOf(UUID uuid)            {return CAMPS.get(uuid).getInt("level");}
+    public int getExp(UUID uuid)                {return CAMPS.get(uuid).getInt("exp");}
+
+    public int getFood(UUID uuid)               {return CAMPS.get(uuid).getCompound("resources").getInt("food");}
+    public int getWood(UUID uuid)               {return CAMPS.get(uuid).getCompound("resources").getInt("wood");}
+    public int getStone(UUID uuid)              {return CAMPS.get(uuid).getCompound("resources").getInt("stone");}
+    public int getLeather(UUID uuid)            {return CAMPS.get(uuid).getCompound("resources").getInt("leather");}
+    public int getRare(UUID uuid)               {return CAMPS.get(uuid).getCompound("resources").getInt("rare");}
+
+    public int getFriendship(UUID uuid, UUID player) {
+        int friendship = 0;
+        for (int i=0; i<CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).size(); i++){
+            if(CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i).getUUID("playerUUID").equals(player)){
+                friendship = CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i).getInt("playerValue");
+                return friendship;
+            }
+        }
+        return 0;
+    }
+    public void addFriendship(UUID uuid, UUID player, int value){
+        if (CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).isEmpty()) {
+            CAMPS.get(uuid).put("friendship", new ListTag());
+            addPlayer(uuid, player, value);
+            return;
+        }
+        boolean isContains = false;
+        for (int i=0; i<CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).size(); i++) {
+            CompoundTag tag = CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i);
+            if (tag.getUUID("playerUUID").equals(player)) {
+                    int res = tag.getInt("playerValue") + value;
+                    if (res > 100) {
+                        res = 100;
+                    } else if (res < -100) {
+                        res = -100;
+                    }
+                    tag.remove("playerValue");
+                    tag.putInt("playerValue", res);
+                    isContains = true;
+                }
+        }
+        if(!isContains){
+            addPlayer(uuid, player, value);
+            return;
+        }
+        setDirty();
+    }
+    public void addExp(UUID uuid, int value){
+        int expNow = CAMPS.get(uuid).getInt("exp");
+        int res;
+        if(getLevelOf(uuid) != maxLevel) {
+            if (expNow + value >= expForLevel.get(getLevelOf(uuid) - 1)) {
+                res = expNow + value - expForLevel.get(getLevelOf(uuid) - 1);
+                levelUp(uuid);
+            } else {
+                res = expNow + value;
+            }
+        }else{
+            if(expNow+value >= expForLevel.get(maxLevel-1)){
+                res = expForLevel.get(maxLevel-1);
+            }else{
+                res = expNow + value;
+            }
+        }
+        CAMPS.get(uuid).remove("exp");
+        CAMPS.get(uuid).putInt("exp", res);
+        setDirty();
+    }
+    public void levelUp(UUID uuid){
+        int newLevel = getLevelOf(uuid) + 1;
+        //TODO Citizen count
+
+        CAMPS.get(uuid).remove("level");
+        CAMPS.get(uuid).putInt("level", newLevel);
+        CAMPS.get(uuid).remove("radius");
+        CAMPS.get(uuid).putInt("radius", getRadiusOf(newLevel));
+        setDirty();
+    }
+    public void addResources(UUID uuid, String resourcesType, int value){
+        CompoundTag resources = CAMPS.get(uuid).getCompound("resources");
+
+        int countCopy = resources.getInt(resourcesType);
+        resources.remove(resourcesType);
+        resources.putInt(resourcesType, countCopy+value);
+        setDirty();
+    }
+
+    private void addPlayer(UUID uuid, UUID player, int friendship){
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("playerUUID", player);
+        if (friendship > 100) {
+            friendship = 100;
+        } else if (friendship < -100) {
+            friendship = -100;
+        }
+        tag.putInt("playerValue", friendship);
+        CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).add(tag);
+        setDirty();
+    }
+
+    public int getRadiusOf(int level){
+        return switch (level){
+            case 1 -> 15;
+            case 2 -> 25;
+            case 3 -> 35;
+            case 4 -> 45;
+            case 5 -> 60;
+            default -> 0;
+        };
+    }
+
+    private String nameGenerate(){
+        List<String> first = List.of("РЎРµСЂС‹Р№", "РљСЂР°СЃРЅС‹Р№", "РЎРµРІРµСЂРЅС‹Р№", "РўРёС…РёР№", "Р”РёРєРёР№", "Р–РµР»РµР·РЅС‹Р№");
+        List<String> second = List.of("Р’РµС‚РµСЂ", "РљР°РјРµРЅСЊ", "Р’РѕР»Рє", "РћРіРѕРЅСЊ", "РџРµСЃРѕРє", "РћСЂС‘Р»");
+
+        Random rand = new Random();
+
+        String res = first.get(rand.nextInt(first.size())) + " " + second.get(rand.nextInt(second.size()));
+        return res;
+    }
+}
+===== src\main\java\ru\kiero\nomad\entity\NomadEntity.java =====
+package ru.kiero.nomad.entity;
+
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.Level;
+
+public class NomadEntity extends PathfinderMob {
+
+    public NomadEntity(EntityType<? extends PathfinderMob> pEntityType, Level pLevel) {
+        super(pEntityType, pLevel);
+    }
+
+    public static AttributeSupplier.Builder createAttributes(){
+        return Mob.createMobAttributes().add(Attributes.MAX_HEALTH, 20D).add(Attributes.MOVEMENT_SPEED, 0.25D);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\events\NomadEvents.java =====
+package ru.kiero.nomad.events;
+
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.data.CampData;
+
+import java.util.UUID;
+
+@Mod.EventBusSubscriber(modid = Nomad.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+public class NomadEvents {
+
+    @SubscribeEvent
+    public static void onCommands(RegisterCommandsEvent event){
+        event.getDispatcher().register(Commands.literal("nomad")
+                .then(Commands.literal("create")
+                        .executes(ctx -> create(ctx.getSource())))
+                .then(Commands.literal("info")
+                        .executes(ctx -> info(ctx.getSource())))
+                .then(Commands.literal("remove")
+                        .executes(ctx -> remove(ctx.getSource())))
+                .then(Commands.literal("friendship")
+                    .then(Commands.literal("add")
+                            .then(Commands.argument("value", IntegerArgumentType.integer(0, 100))
+                                    .executes(ctx -> addFriendship(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "value")))))
+                .then(Commands.literal("remove")
+                        .then(Commands.argument("value", IntegerArgumentType.integer(-100, 0))
+                                .executes(ctx -> addFriendship(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "value")))))));
+    }
+
+    private static int create(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        CampData data = CampData.get(source.getLevel());
+
+        UUID uuid = data.createCamp(player.blockPosition());
+        source.sendSuccess(() -> Component.literal(
+                "Р›Р°РіРµСЂСЊ СЃРѕР·РґР°РЅ: " + uuid + " В«" + data.getName(uuid) + "В»"), false);
+        return 1;
+    }
+
+    private static int info(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        CampData data = CampData.get(source.getLevel());
+
+        UUID uuid = data.getCampAt(player.blockPosition());
+        if (uuid == null) {
+            source.sendSuccess(() -> Component.literal("Р—РґРµСЃСЊ РЅРµС‚ Р»Р°РіРµСЂСЏ."), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "В«" + data.getName(uuid) + "В» СѓСЂ." + data.getLevelOf(uuid)
+                        + ", СЂР°РґРёСѓСЃ " + data.getRadius(uuid)
+                        + ", pos " + data.getBlockPos(uuid).toShortString()
+                        + ", РґСЂСѓР¶Р±Р° " + data.getFriendship(uuid, player.getUUID())), false);
+        return 1;
+    }
+
+    private static int remove(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        CampData data = CampData.get(source.getLevel());
+
+        UUID uuid = data.getCampAt(player.blockPosition());
+        if (uuid == null) return 0;
+        data.removeCamp(uuid);
+        source.sendSuccess(() -> Component.literal("Р›Р°РіРµСЂСЊ СѓРґР°Р»С‘РЅ: " + uuid), false);
+        return 1;
+    }
+
+    private static int addFriendship(CommandSourceStack source, int value){
+        ServerPlayer serverPlayer =source.getPlayer();
+        if (serverPlayer == null) return 0;
+        CampData data = CampData.get(source.getLevel());
+
+        UUID uuid = data.getCampAt(serverPlayer.blockPosition());
+        if (uuid == null) return 0;
+        data.addFriendship(uuid, serverPlayer.getUUID(), value);
+        source.sendSuccess(() -> Component.literal(((value >= 0) ? "Р”РѕР±Р°РІР»РµРЅРѕ: " : "РЈР±СЂР°РЅРѕ: ") + value + " РѕС‡РєРѕРІ РґСЂСѓР¶Р±С‹"), false);
+        return 1;
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\init\NomadBlockEntities.java =====
+package ru.kiero.nomad.init;
+
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.blocks.TotemBlockEntity;
+
+public class NomadBlockEntities {
+
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, Nomad.MOD_ID);
+
+    public static final RegistryObject<BlockEntityType<TotemBlockEntity>> TOTEM = BLOCK_ENTITIES.register("totem", () -> BlockEntityType.Builder.of(TotemBlockEntity::new, NomadBlocks.TOTEM.get()).build(null));
+
+    public static void reg(IEventBus bus){
+        BLOCK_ENTITIES.register(bus);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\init\NomadBlocks.java =====
+package ru.kiero.nomad.init;
+
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.blocks.TotemBlock;
+
+public class NomadBlocks {
+
+    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, Nomad.MOD_ID);
+
+    public static final RegistryObject<Block> TOTEM = BLOCKS.register("totem", () -> new TotemBlock(BlockBehaviour.Properties.of().strength(3f).sound(SoundType.WOOD)));
+
+    public static void reg(IEventBus bus){
+        BLOCKS.register(bus);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\init\NomadCreativeTab.java =====
+package ru.kiero.nomad.init;
+
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.RegistryObject;
+import ru.kiero.nomad.Nomad;
+
+public class NomadCreativeTab {
+
+    public static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Nomad.MOD_ID);
+
+    public static final RegistryObject<CreativeModeTab> NOMAD_TAB = TABS.register("nomad_tab", () -> CreativeModeTab.builder()
+            .title(Component.translatable("itemGroup.nomad_tab"))
+            .icon(() -> new ItemStack(NomadItems.TOTEM.get()))
+            .displayItems((pParameters, pOutput) -> pOutput.accept(NomadItems.TOTEM.get())).build());
+
+    public static void reg(IEventBus bus){
+        TABS.register(bus);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\init\NomadEntities.java =====
+package ru.kiero.nomad.init;
+
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.entity.NomadEntity;
+
+public class NomadEntities {
+
+    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, Nomad.MOD_ID);
+
+    public static final RegistryObject<EntityType<NomadEntity>> NOMAD = ENTITIES.register("nomad",
+            () -> EntityType.Builder.of(NomadEntity::new, MobCategory.CREATURE)
+                    .sized(0.6f, 1.8f)
+                    .build("namod"));
+
+    public static void reg(IEventBus bus){
+        ENTITIES.register(bus);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\init\NomadItems.java =====
+package ru.kiero.nomad.init;
+
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+import ru.kiero.nomad.Nomad;
+
+public class NomadItems {
+
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, Nomad.MOD_ID);
+
+    public static final RegistryObject<Item> TOTEM = ITEMS.register("totem", () -> new BlockItem(NomadBlocks.TOTEM.get(), new Item.Properties()));
+
+    public static void reg(IEventBus bus){
+        ITEMS.register(bus);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\init\NomadMenuTypes.java =====
+package ru.kiero.nomad.init;
+
+import net.minecraft.world.inventory.MenuType;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import ru.kiero.nomad.Nomad;
+
+public class NomadMenuTypes {
+
+    public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, Nomad.MOD_ID);
+
+    //public static final RegistryObject<MenuType<TotemMainMenu>> TOTEM_MAIN = MENUS.register("totem_main_menu", () -> IForgeMenuType.create((windowId, inv, buf) -> new TotemMainMenu(windowId, inv, buf)));
+
+    public static void reg(IEventBus bus){
+        MENUS.register(bus);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\networking\MainScreenPacket.java =====
+package ru.kiero.nomad.networking;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraftforge.network.NetworkEvent;
+import ru.kiero.nomad.client.NomadClient;
+import ru.kiero.nomad.client.TotemMainScreen;
+
+import java.util.function.Supplier;
+
+public class MainScreenPacket {
+
+    private final String lable;
+    private final int levelOf;
+    private final int exp;
+    private final int friendship;
+    private final int radius;
+
+    private final int food;
+    private final int wood;
+    private final int stone;
+    private final int leather;
+    private final int rare;
+
+    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare) {
+        this.lable = lable;
+        this.levelOf = levelOf;
+        this.exp = exp;
+        this.friendship = friendship;
+        this.radius = radius;
+
+        this.food = food;
+        this.wood = wood;
+        this.stone = stone;
+        this.leather = leather;
+        this.rare = rare;
+    }
+
+    public MainScreenPacket(FriendlyByteBuf buf){
+        this.lable = buf.readUtf();
+        this.levelOf = buf.readInt();
+        this.exp = buf.readInt();
+        this.friendship = buf.readInt();
+        this.radius = buf.readInt();
+
+        this.food = buf.readInt();
+        this.wood = buf.readInt();
+        this.stone = buf.readInt();
+        this.leather = buf.readInt();
+        this.rare = buf.readInt();
+    }
+
+    public void write(FriendlyByteBuf buf){
+        buf.writeUtf(lable);
+        buf.writeInt(levelOf);
+        buf.writeInt(exp);
+        buf.writeInt(friendship);
+        buf.writeInt(radius);
+
+        buf.writeInt(food);
+        buf.writeInt(wood);
+        buf.writeInt(stone);
+        buf.writeInt(leather);
+        buf.writeInt(rare);
+    }
+
+    public void handle(Supplier<NetworkEvent.Context> sup){
+        NetworkEvent.Context ctx = sup.get();
+
+        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(""), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare));
+        ctx.setPacketHandled(true);
+    }
+}
+
+===== src\main\java\ru\kiero\nomad\networking\NomadNetworking.java =====
+package ru.kiero.nomad.networking;
+
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.simple.SimpleChannel;
+import ru.kiero.nomad.Nomad;
+
+public class NomadNetworking {
+    public static final String PROTOCOL_VERSION = "1";
+    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(new ResourceLocation(Nomad.MOD_ID, "main"), () -> PROTOCOL_VERSION, PROTOCOL_VERSION::equals, PROTOCOL_VERSION::equals);
+
+    public static void reg(){
+        CHANNEL.messageBuilder(MainScreenPacket.class, 1).encoder(MainScreenPacket::write).decoder(MainScreenPacket::new).consumerMainThread(MainScreenPacket::handle).add();
+    }
+}
+

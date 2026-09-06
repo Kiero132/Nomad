@@ -1,0 +1,33 @@
+﻿===== src\main\resources\assets\nomad\blockstates\totem.json =====
+{
+  "variants": {
+    "":{
+      "model": "nomad:block/totem"
+    }
+  }
+}
+===== src\main\resources\assets\nomad\lang\ru_ru.json =====
+{
+  "itemGroup.nomad_tab": "РќРѕРјР°РґС‹",
+  "block.nomad.totem": "РўРѕС‚РµРј"
+}
+===== src\main\resources\assets\nomad\models\block\totem.json =====
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "nomad:block/totem"
+  }
+}
+===== src\main\resources\assets\nomad\models\item\totem.json =====
+{
+  "parent": "nomad:block/totem"
+}
+===== src\main\resources\pack.mcmeta =====
+{
+  "pack": {
+    "description": {
+      "text": "${mod_id} resources"
+    },
+    "pack_format": 15
+  }
+}
