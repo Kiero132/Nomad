@@ -3,6 +3,7 @@ package ru.kiero.nomad.events;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
@@ -88,7 +89,7 @@ public class NomadEvents {
         if (serverPlayer == null) return 0;
         CampData data = CampData.get(source.getLevel());
 
-        UUID uuid = data.getCampAt(serverPlayer.blockPosition());
+        UUID uuid = data.getCampAt(new BlockPos((int) serverPlayer.getX(), (int) serverPlayer.getY()-1, (int) serverPlayer.getZ()));
         if (uuid == null) return 0;
         data.addFriendship(uuid, serverPlayer.getUUID(), value);
         source.sendSuccess(() -> Component.literal(((value >= 0) ? "Добавлено: " : "Убрано: ") + value + " очков дружбы"), false);

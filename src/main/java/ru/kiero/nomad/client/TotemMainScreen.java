@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.RelationStage;
 
 public class TotemMainScreen extends Screen {
 
@@ -84,6 +85,9 @@ public class TotemMainScreen extends Screen {
         pGuiGraphics.blit(BG, leftPos+22, topPos+52, 0, imageHeight+1, barWidth, 8);
         drawSmallString(pGuiGraphics, this.font, "-100", this.leftPos+15, this.topPos+62, 0x431c10, false, 0.5f);
         drawSmallString(pGuiGraphics, this.font, "100", this.leftPos+100, this.topPos+62, 0x431c10, false, 0.5f);
+
+        text = RelationStage.of(friendship).toString();
+        drawSmallString(pGuiGraphics, this.font, RelationStage.of(friendship).toString(), this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+62, 0x431c10, false, 0.5f);
 
         //Level
         text = "Уровень: " + String.valueOf(levelOf);
