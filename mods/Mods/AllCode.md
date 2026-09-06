@@ -510,6 +510,7 @@ import net.minecraft.world.entity.Entity;
 import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.client.model.NomadModel;
 import ru.kiero.nomad.entity.NomadEntity;
+import ru.kiero.nomad.entity.Profession;
 
 public class NomadRenderer extends MobRenderer&lt;NomadEntity, NomadModel&gt; {
 
@@ -518,6 +519,9 @@ public class NomadRenderer extends MobRenderer&lt;NomadEntity, NomadModel&gt; {
     }
     @Override
     public ResourceLocation getTextureLocation(NomadEntity pEntity) {
+        if (pEntity.getProfession() == Profession.HUNTER) return new ResourceLocation(Nomad.MOD_ID, &quot;textures/entity/hunter.png&quot;);
+        if (pEntity.getProfession() == Profession.SHAMAN) return new ResourceLocation(Nomad.MOD_ID, &quot;textures/entity/shaman.png&quot;);
+        if (pEntity.getProfession() == Profession.TRADER) return new ResourceLocation(Nomad.MOD_ID, &quot;textures/entity/trader.png&quot;);
         return new ResourceLocation(Nomad.MOD_ID, &quot;textures/entity/nomad.png&quot;);
     }
 }
@@ -997,6 +1001,8 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import ru.kiero.nomad.data.CampData;
@@ -1024,6 +1030,10 @@ public class NomadEntity extends PathfinderMob {
     protected void registerGoals() {
         super.registerGoals();
         goalSelector.addGoal(0, new FloatGoal(this));
+        if (this.getProfession() == Profession.HUNTER) {
+            this.targetSelector.addGoal(1, new NearestAttackableTargetGoal&lt;&gt;(this, Monster.class, true));
+            goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.0, true));
+        }
         goalSelector.addGoal(1, new ReturnToCampGoal(this, 0.5));
         goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8F));
         goalSelector.addGoal(3, new RandomStrollGoal(this, 1.0));
@@ -1194,8 +1204,6 @@ public class ReturnToCampGoal extends Goal {
     public boolean canUse() {
         if (nomad.getCampUUID() != null){
             if (nomad.level() instanceof ServerLevel serverLevel){
-                CampData data = CampData.get(serverLevel);
-                this.data = data;
                 if (nomad.getCampUUID() != null) {
                     this.campUUID = nomad.getCampUUID();
                     this.radius = data.getRadius(campUUID);

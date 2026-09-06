@@ -11,6 +11,8 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import ru.kiero.nomad.data.CampData;
@@ -38,6 +40,10 @@ public class NomadEntity extends PathfinderMob {
     protected void registerGoals() {
         super.registerGoals();
         goalSelector.addGoal(0, new FloatGoal(this));
+        if (this.getProfession() == Profession.HUNTER) {
+            this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Monster.class, true));
+            goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.0, true));
+        }
         goalSelector.addGoal(1, new ReturnToCampGoal(this, 0.5));
         goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 8F));
         goalSelector.addGoal(3, new RandomStrollGoal(this, 1.0));

@@ -8,6 +8,7 @@ import net.minecraft.world.entity.Entity;
 import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.client.model.NomadModel;
 import ru.kiero.nomad.entity.NomadEntity;
+import ru.kiero.nomad.entity.Profession;
 
 public class NomadRenderer extends MobRenderer<NomadEntity, NomadModel> {
 
@@ -16,6 +17,9 @@ public class NomadRenderer extends MobRenderer<NomadEntity, NomadModel> {
     }
     @Override
     public ResourceLocation getTextureLocation(NomadEntity pEntity) {
+        if (pEntity.getProfession() == Profession.HUNTER) return new ResourceLocation(Nomad.MOD_ID, "textures/entity/hunter.png");
+        if (pEntity.getProfession() == Profession.SHAMAN) return new ResourceLocation(Nomad.MOD_ID, "textures/entity/shaman.png");
+        if (pEntity.getProfession() == Profession.TRADER) return new ResourceLocation(Nomad.MOD_ID, "textures/entity/trader.png");
         return new ResourceLocation(Nomad.MOD_ID, "textures/entity/nomad.png");
     }
 }
