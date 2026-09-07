@@ -42,6 +42,7 @@ public class ReturnToCampGoal extends Goal {
     public boolean canUse() {
         if (nomad.getCampUUID() != null){
             if (nomad.level() instanceof ServerLevel serverLevel){
+                if (data.getBlockPos(nomad.getCampUUID()) == null) return false;
                 if (nomad.getCampUUID() != null) {
                     this.campUUID = nomad.getCampUUID();
                     this.radius = data.getRadius(campUUID);

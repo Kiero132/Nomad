@@ -80,6 +80,9 @@ public class NomadEntity extends PathfinderMob {
         this.entityData.set(DATA_PROFESSION_ID, profession.getId());
         if (profession == Profession.HUNTER){
             this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        }else{
+            this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+
         }
     }
     public void setCampUUID(UUID uuid){

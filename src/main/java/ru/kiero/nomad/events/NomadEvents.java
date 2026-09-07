@@ -149,8 +149,8 @@ public class NomadEvents {
 
     private static int setBind(CommandSourceStack source){
         ServerPlayer serverPlayer = source.getPlayer();
-        CampData data = CampData.get(serverPlayer.serverLevel());
         if (serverPlayer == null) return 0;
+        CampData data = CampData.get(serverPlayer.serverLevel());
 
         NomadEntity nomad = serverPlayer.level().getNearestEntity(
                 NomadEntity.class,

@@ -208,6 +208,19 @@ public class CampData extends SavedData {
         }
         CompoundTag tag = new CompoundTag();
         tag.putUUID("citizenUUID", citizenUUID);
+        tag.putInt("citizenProfession", 0);
+        citizenList.add(tag);
+
+        setDirty();
+    }
+    public void addCitizen(UUID campUUID, UUID citizenUUID, Profession p){
+        ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()){
+            CAMPS.get(campUUID).put("citizen", new ListTag());
+        }
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("citizenUUID", citizenUUID);
+        tag.putInt("citizenProfession", p.getId());
         citizenList.add(tag);
 
         setDirty();

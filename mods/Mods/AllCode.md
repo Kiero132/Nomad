@@ -374,7 +374,7 @@ public class TotemBlock extends Block implements EntityBlock {
             UUID camp = data.getCampAt(pPos);
             NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -&gt; serverPlayer), new MainScreenPacket(
                     data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getFriendship(camp, pPlayer.getUUID()), data.getRadius(camp),
-                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.TRADER)));
+                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.SHAMAN)));
             return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;
@@ -926,6 +926,19 @@ public class CampData extends SavedData {
         }
         CompoundTag tag = new CompoundTag();
         tag.putUUID(&quot;citizenUUID&quot;, citizenUUID);
+        tag.putInt(&quot;citizenProfession&quot;, 0);
+        citizenList.add(tag);
+
+        setDirty();
+    }
+    public void addCitizen(UUID campUUID, UUID citizenUUID, Profession p){
+        ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()){
+            CAMPS.get(campUUID).put(&quot;citizen&quot;, new ListTag());
+        }
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID(&quot;citizenUUID&quot;, citizenUUID);
+        tag.putInt(&quot;citizenProfession&quot;, p.getId());
         citizenList.add(tag);
 
         setDirty();
@@ -1143,6 +1156,9 @@ public class NomadEntity extends PathfinderMob {
         this.entityData.set(DATA_PROFESSION_ID, profession.getId());
         if (profession == Profession.HUNTER){
             this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        }else{
+            this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+
         }
     }
     public void setCampUUID(UUID uuid){
@@ -1379,6 +1395,7 @@ public class ReturnToCampGoal extends Goal {
     public boolean canUse() {
         if (nomad.getCampUUID() != null){
             if (nomad.level() instanceof ServerLevel serverLevel){
+                if (data.getBlockPos(nomad.getCampUUID()) == null) return false;
                 if (nomad.getCampUUID() != null) {
                     this.campUUID = nomad.getCampUUID();
                     this.radius = data.getRadius(campUUID);
@@ -1604,8 +1621,8 @@ public class NomadEvents {
 
     private static int setBind(CommandSourceStack source){
         ServerPlayer serverPlayer = source.getPlayer();
-        CampData data = CampData.get(serverPlayer.serverLevel());
         if (serverPlayer == null) return 0;
+        CampData data = CampData.get(serverPlayer.serverLevel());
 
         NomadEntity nomad = serverPlayer.level().getNearestEntity(
                 NomadEntity.class,
