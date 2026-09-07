@@ -100,11 +100,11 @@ public class NomadEntity extends PathfinderMob {
     @Override
     public void readAdditionalSaveData(CompoundTag pCompound) {
         super.readAdditionalSaveData(pCompound);
-        if (pCompound.contains("profession")){
-            this.setProfession(Profession.fromId(pCompound.getInt("profession")));
-        }
         if (pCompound.contains("campUUID")){
             this.setCampUUID(pCompound.getUUID("campUUID"));
+        }
+        if (pCompound.contains("profession")){
+            this.setProfession(Profession.fromId(pCompound.getInt("profession")));
         }
     }
 

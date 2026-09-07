@@ -166,7 +166,7 @@ public class NomadEvents {
         if (nomad != null && uuid != null){
             nomad.setCampUUID(uuid);
             source.sendSuccess(() -> Component.literal("Номад привязан: " + nomad.getCampUUID()), false);
-            data.addCitizen(nomad.getCampUUID(), nomad.getUUID());
+            if (!data.hasCitizen(nomad.getCampUUID(), nomad.getUUID())) data.addCitizen(nomad.getCampUUID(), nomad.getUUID());
             return 1;
         }
         source.sendFailure(Component.literal("Рядом нет номадов"));

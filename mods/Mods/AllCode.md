@@ -969,11 +969,12 @@ public class CampData extends SavedData {
     }
     public void changeProfession(UUID campUUID, UUID citizenUUID, Profession p){
         ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+        if (campUUID == null) return;;
         if (citizenList.isEmpty()) return;
         for (int i=0; i&lt;citizenList.size(); i++){
             CompoundTag tag = citizenList.getCompound(i);
 
-            if (tag.getUUID(&quot;citizenUUID&quot;) == citizenUUID){
+            if (tag.getUUID(&quot;citizenUUID&quot;).equals(citizenUUID)){
                 tag.remove(&quot;citizenProfession&quot;);
                 tag.putInt(&quot;citizenProfession&quot;, p.getId());
             }
@@ -1191,11 +1192,11 @@ public class NomadEntity extends PathfinderMob {
     @Override
     public void readAdditionalSaveData(CompoundTag pCompound) {
         super.readAdditionalSaveData(pCompound);
-        if (pCompound.contains(&quot;profession&quot;)){
-            this.setProfession(Profession.fromId(pCompound.getInt(&quot;profession&quot;)));
-        }
         if (pCompound.contains(&quot;campUUID&quot;)){
             this.setCampUUID(pCompound.getUUID(&quot;campUUID&quot;));
+        }
+        if (pCompound.contains(&quot;profession&quot;)){
+            this.setProfession(Profession.fromId(pCompound.getInt(&quot;profession&quot;)));
         }
     }
 
@@ -1653,7 +1654,7 @@ public class NomadEvents {
         if (nomad != null &amp;&amp; uuid != null){
             nomad.setCampUUID(uuid);
             source.sendSuccess(() -&gt; Component.literal(&quot;Номад привязан: &quot; + nomad.getCampUUID()), false);
-            data.addCitizen(nomad.getCampUUID(), nomad.getUUID());
+            if (!data.hasCitizen(nomad.getCampUUID(), nomad.getUUID())) data.addCitizen(nomad.getCampUUID(), nomad.getUUID());
             return 1;
         }
         source.sendFailure(Component.literal(&quot;Рядом нет номадов&quot;));

@@ -251,11 +251,12 @@ public class CampData extends SavedData {
     }
     public void changeProfession(UUID campUUID, UUID citizenUUID, Profession p){
         ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
+        if (campUUID == null) return;;
         if (citizenList.isEmpty()) return;
         for (int i=0; i<citizenList.size(); i++){
             CompoundTag tag = citizenList.getCompound(i);
 
-            if (tag.getUUID("citizenUUID") == citizenUUID){
+            if (tag.getUUID("citizenUUID").equals(citizenUUID)){
                 tag.remove("citizenProfession");
                 tag.putInt("citizenProfession", p.getId());
             }
