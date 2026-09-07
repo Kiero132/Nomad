@@ -250,9 +250,9 @@ public class CampData extends SavedData {
         return 0;
     }
     public void changeProfession(UUID campUUID, UUID citizenUUID, Profession p){
+        if (campUUID == null) return;
+        if (CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND).isEmpty()) return;
         ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
-        if (campUUID == null) return;;
-        if (citizenList.isEmpty()) return;
         for (int i=0; i<citizenList.size(); i++){
             CompoundTag tag = citizenList.getCompound(i);
 

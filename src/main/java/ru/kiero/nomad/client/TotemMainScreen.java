@@ -3,12 +3,16 @@ package ru.kiero.nomad.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.RelationStage;
+import ru.kiero.nomad.networking.NomadNetworking;
+import ru.kiero.nomad.networking.PresentPacket;
 
 public class TotemMainScreen extends Screen {
 
@@ -30,9 +34,11 @@ public class TotemMainScreen extends Screen {
     private final int leather;
     private final int rare;
 
+    private final BlockPos blockPos;
+
     public static final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, "textures/gui/totem.png");
 
-    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
+    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman, BlockPos blockPos) {
         super(pTitle);
         this.imageWidth = 132;
         this.imageHeight = 233;
@@ -49,14 +55,26 @@ public class TotemMainScreen extends Screen {
         this.stone = stone;
         this.leather = leather;
         this.rare = rare;
+
+        this.blockPos = blockPos;
     }
 
     @Override
     protected void init() {
         super.init();
-        //this.leftPos = (this.width-this.imageWidth)/2-this.imageWidth/2;
         this.leftPos = width/2-imageWidth/2;
         this.topPos = (this.height-imageHeight)/2;
+
+        this.addRenderableWidget(
+                Button.builder(Component.literal(""), this::onGiftClick)
+                        .bounds(this.leftPos + 37, this.topPos + 154, 60, 12)
+                        .build(button -> new Button(button) {
+                            @Override
+                            protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+                                // Пусто — кнопка невидима
+                            }
+                        })
+        );
     }
 
     @Override
@@ -125,6 +143,8 @@ public class TotemMainScreen extends Screen {
         drawSmallString(pGuiGraphics, this.font, "Редкое", this.leftPos+100, this.topPos+140,0x431c10, false, 0.5f);
         drawSmallString(pGuiGraphics, this.font, normalizeText(rare), this.leftPos+113-this.font.width(normalizeText(rare)), this.topPos+145,0x431c10, false, 0.5f);
 
+        //Buttons
+
     }
 
     private void drawSmallString(GuiGraphics guiGraphics, Font font, String text, int x, int y, int color, boolean shadow, float scale){
@@ -142,5 +162,13 @@ public class TotemMainScreen extends Screen {
         }else{
             return String.valueOf(value/1000)+"k";
         }
+    }
+
+    private void render(GuiGraphics graphics, Button button, int mouseX, int mouseY, float partialTick){
+
+    }
+
+    private void onGiftClick(Button button){
+        NomadNetworking.CHANNEL.sendToServer(new PresentPacket(blockPos));
     }
 }

@@ -2,20 +2,28 @@ package ru.kiero.nomad.blocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import ru.kiero.nomad.init.NomadBlockEntities;
+import ru.kiero.nomad.menu.PresentMenu;
+
 import java.util.UUID;
 
-public class TotemBlockEntity extends BlockEntity implements ContainerData {
+public class TotemBlockEntity extends BlockEntity implements ContainerData, MenuProvider {
 
     private UUID uuid;
 
-    private final ItemStackHandler items = new ItemStackHandler(2){
+    private final ItemStackHandler items = new ItemStackHandler(1){
         @Override
         protected void onContentsChanged(int slot) {
             super.onContentsChanged(slot);
@@ -71,5 +79,19 @@ public class TotemBlockEntity extends BlockEntity implements ContainerData {
     public void setUuid(UUID uuid) {
         this.uuid = uuid;
         setChanged();
+    }
+
+    public ItemStackHandler getItems() {
+        return items;
+    }
+
+    @Override
+    public Component getDisplayName() {
+        return Component.literal("");
+    }
+
+    @Override
+    public @Nullable AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
+        return new PresentMenu(pContainerId, pPlayerInventory, this);
     }
 }

@@ -1,5 +1,6 @@
 package ru.kiero.nomad.networking;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.network.NetworkEvent;
@@ -23,7 +24,9 @@ public class MainScreenPacket {
     private final int leather;
     private final int rare;
 
-    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
+    private final BlockPos blockPos;
+
+    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman, BlockPos blockPos) {
         this.lable = lable;
         this.levelOf = levelOf;
         this.exp = exp;
@@ -36,6 +39,8 @@ public class MainScreenPacket {
         this.stone = stone;
         this.leather = leather;
         this.rare = rare;
+
+        this.blockPos = blockPos;
     }
 
     public MainScreenPacket(FriendlyByteBuf buf){
@@ -51,6 +56,8 @@ public class MainScreenPacket {
         this.stone = buf.readInt();
         this.leather = buf.readInt();
         this.rare = buf.readInt();
+
+        this.blockPos = buf.readBlockPos();
     }
 
     public void write(FriendlyByteBuf buf){
@@ -66,12 +73,14 @@ public class MainScreenPacket {
         buf.writeInt(stone);
         buf.writeInt(leather);
         buf.writeInt(rare);
+
+        buf.writeBlockPos(blockPos);
     }
 
     public void handle(Supplier<NetworkEvent.Context> sup){
         NetworkEvent.Context ctx = sup.get();
 
-        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(""), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare, hasShaman));
+        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(""), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare, hasShaman, blockPos));
         ctx.setPacketHandled(true);
     }
 }

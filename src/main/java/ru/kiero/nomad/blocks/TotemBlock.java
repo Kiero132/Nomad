@@ -57,7 +57,7 @@ public class TotemBlock extends Block implements EntityBlock {
             UUID camp = data.getCampAt(pPos);
             NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer), new MainScreenPacket(
                     data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getFriendship(camp, pPlayer.getUUID()), data.getRadius(camp),
-                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.SHAMAN)));
+                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.SHAMAN), pPos));
             return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;

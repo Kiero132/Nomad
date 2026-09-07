@@ -252,6 +252,7 @@ rootProject.name = &#x27;nomad&#x27;
 <pre><code class="language-java">
 package ru.kiero.nomad;
 
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
@@ -261,6 +262,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import ru.kiero.nomad.client.NomadRenderer;
+import ru.kiero.nomad.client.PresentScreen;
 import ru.kiero.nomad.client.model.NomadModel;
 import ru.kiero.nomad.entity.NomadEntity;
 import ru.kiero.nomad.init.*;
@@ -288,7 +290,7 @@ public class Nomad {
     }
 
     private void clientSetup(FMLClientSetupEvent event){
-
+        event.enqueueWork(() -&gt; MenuScreens.register(NomadMenuTypes.PRESENT_MENU.get(), PresentScreen::new));
     }
 
     private void commonSetup(FMLCommonSetupEvent event){
@@ -374,7 +376,7 @@ public class TotemBlock extends Block implements EntityBlock {
             UUID camp = data.getCampAt(pPos);
             NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -&gt; serverPlayer), new MainScreenPacket(
                     data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getFriendship(camp, pPlayer.getUUID()), data.getRadius(camp),
-                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.SHAMAN)));
+                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.SHAMAN), pPos));
             return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;
@@ -392,20 +394,28 @@ package ru.kiero.nomad.blocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import ru.kiero.nomad.init.NomadBlockEntities;
+import ru.kiero.nomad.menu.PresentMenu;
+
 import java.util.UUID;
 
-public class TotemBlockEntity extends BlockEntity implements ContainerData {
+public class TotemBlockEntity extends BlockEntity implements ContainerData, MenuProvider {
 
     private UUID uuid;
 
-    private final ItemStackHandler items = new ItemStackHandler(2){
+    private final ItemStackHandler items = new ItemStackHandler(1){
         @Override
         protected void onContentsChanged(int slot) {
             super.onContentsChanged(slot);
@@ -461,6 +471,20 @@ public class TotemBlockEntity extends BlockEntity implements ContainerData {
     public void setUuid(UUID uuid) {
         this.uuid = uuid;
         setChanged();
+    }
+
+    public ItemStackHandler getItems() {
+        return items;
+    }
+
+    @Override
+    public Component getDisplayName() {
+        return Component.literal(&quot;&quot;);
+    }
+
+    @Override
+    public @Nullable AbstractContainerMenu createMenu(int pContainerId, Inventory pPlayerInventory, Player pPlayer) {
+        return new PresentMenu(pContainerId, pPlayerInventory, this);
     }
 }
 
@@ -526,6 +550,59 @@ public class NomadRenderer extends MobRenderer&lt;NomadEntity, NomadModel&gt; {
 
 ---
 
+## src/main/java/ru/kiero/nomad/client/PresentScreen.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.client;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.menu.PresentMenu;
+
+public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
+
+    public static final ResourceLocation RESOURCE_LOCATION = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/present.png&quot;);
+
+    public PresentScreen(PresentMenu pMenu, Inventory inv, Component pTitle) {
+        super(pMenu, inv, pTitle);
+        this.imageWidth = 256;
+        this.imageHeight = 256;
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics pGuiGraphics, float pPartialTick, int pMouseX, int pMouseY) {
+
+    }
+
+    @Override
+    public void render(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+        renderBackground(pGuiGraphics);
+        super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics pGuiGraphics) {
+        super.renderBackground(pGuiGraphics);
+        RenderSystem.setShaderTexture(0, RESOURCE_LOCATION);
+        pGuiGraphics.blit(RESOURCE_LOCATION, leftPos, topPos, 0, 0, this.imageWidth, this.imageHeight);
+    }
+
+    @Override
+    protected void renderLabels(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY) {
+
+    }
+}
+
+</code></pre>
+
+---
+
 ## src/main/java/ru/kiero/nomad/client/TotemMainScreen.java
 
 <pre><code class="language-java">
@@ -534,12 +611,16 @@ package ru.kiero.nomad.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.RelationStage;
+import ru.kiero.nomad.networking.NomadNetworking;
+import ru.kiero.nomad.networking.PresentPacket;
 
 public class TotemMainScreen extends Screen {
 
@@ -561,9 +642,11 @@ public class TotemMainScreen extends Screen {
     private final int leather;
     private final int rare;
 
+    private final BlockPos blockPos;
+
     public static final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/totem.png&quot;);
 
-    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
+    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman, BlockPos blockPos) {
         super(pTitle);
         this.imageWidth = 132;
         this.imageHeight = 233;
@@ -580,14 +663,26 @@ public class TotemMainScreen extends Screen {
         this.stone = stone;
         this.leather = leather;
         this.rare = rare;
+
+        this.blockPos = blockPos;
     }
 
     @Override
     protected void init() {
         super.init();
-        //this.leftPos = (this.width-this.imageWidth)/2-this.imageWidth/2;
         this.leftPos = width/2-imageWidth/2;
         this.topPos = (this.height-imageHeight)/2;
+
+        this.addRenderableWidget(
+                Button.builder(Component.literal(&quot;&quot;), this::onGiftClick)
+                        .bounds(this.leftPos + 37, this.topPos + 154, 60, 12)
+                        .build(button -&gt; new Button(button) {
+                            @Override
+                            protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+                                // Пусто — кнопка невидима
+                            }
+                        })
+        );
     }
 
     @Override
@@ -656,6 +751,8 @@ public class TotemMainScreen extends Screen {
         drawSmallString(pGuiGraphics, this.font, &quot;Редкое&quot;, this.leftPos+100, this.topPos+140,0x431c10, false, 0.5f);
         drawSmallString(pGuiGraphics, this.font, normalizeText(rare), this.leftPos+113-this.font.width(normalizeText(rare)), this.topPos+145,0x431c10, false, 0.5f);
 
+        //Buttons
+
     }
 
     private void drawSmallString(GuiGraphics guiGraphics, Font font, String text, int x, int y, int color, boolean shadow, float scale){
@@ -673,6 +770,14 @@ public class TotemMainScreen extends Screen {
         }else{
             return String.valueOf(value/1000)+&quot;k&quot;;
         }
+    }
+
+    private void render(GuiGraphics graphics, Button button, int mouseX, int mouseY, float partialTick){
+
+    }
+
+    private void onGiftClick(Button button){
+        NomadNetworking.CHANNEL.sendToServer(new PresentPacket(blockPos));
     }
 }
 
@@ -968,9 +1073,9 @@ public class CampData extends SavedData {
         return 0;
     }
     public void changeProfession(UUID campUUID, UUID citizenUUID, Profession p){
+        if (campUUID == null) return;
+        if (CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND).isEmpty()) return;
         ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
-        if (campUUID == null) return;;
-        if (citizenList.isEmpty()) return;
         for (int i=0; i&lt;citizenList.size(); i++){
             CompoundTag tag = citizenList.getCompound(i);
 
@@ -1822,19 +1927,107 @@ public class NomadItems {
 package ru.kiero.nomad.init;
 
 import net.minecraft.world.inventory.MenuType;
+import net.minecraftforge.common.extensions.IForgeMenuType;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.menu.PresentMenu;
 
 public class NomadMenuTypes {
 
     public static final DeferredRegister&lt;MenuType&lt;?&gt;&gt; MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, Nomad.MOD_ID);
 
-    //public static final RegistryObject&lt;MenuType&lt;TotemMainMenu&gt;&gt; TOTEM_MAIN = MENUS.register(&quot;totem_main_menu&quot;, () -&gt; IForgeMenuType.create((windowId, inv, buf) -&gt; new TotemMainMenu(windowId, inv, buf)));
+    public static final RegistryObject&lt;MenuType&lt;PresentMenu&gt;&gt; PRESENT_MENU = MENUS.register(&quot;present_menu&quot;, () -&gt; IForgeMenuType.create((windowId, inv, buf) -&gt; new PresentMenu(windowId, inv, buf)));
 
     public static void reg(IEventBus bus){
         MENUS.register(bus);
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/menu/PresentMenu.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.menu;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.items.SlotItemHandler;
+import ru.kiero.nomad.blocks.TotemBlockEntity;
+import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.init.NomadMenuTypes;
+
+public class PresentMenu extends AbstractContainerMenu {
+
+    private final TotemBlockEntity be;
+    private CampData data;
+
+    public PresentMenu(int windowId, Inventory inv, TotemBlockEntity be) {
+        super(NomadMenuTypes.PRESENT_MENU.get(), windowId);
+        this.be = be;
+
+        ServerPlayer serverPlayer = (ServerPlayer) inv.player;
+        this.data = CampData.get(serverPlayer.serverLevel());
+
+        addSlots(inv);
+    }
+
+    public PresentMenu(int windowId, Inventory inv, FriendlyByteBuf buf) {
+        super(NomadMenuTypes.PRESENT_MENU.get(), windowId);
+        this.be = (TotemBlockEntity) inv.player.level().getBlockEntity(buf.readBlockPos());
+
+        addSlots(inv);
+    }
+
+    @Override
+    public ItemStack quickMoveStack(Player pPlayer, int pIndex) {
+        Slot slot = this.slots.get(pIndex);
+        if (!slot.hasItem()) return ItemStack.EMPTY;
+
+        ItemStack stack = slot.getItem();
+        ItemStack copy = stack.copy();
+
+        if (pIndex &lt; 1) {
+            if (!this.moveItemStackTo(stack, 1, 28, true)) return ItemStack.EMPTY;
+        } else {
+            if (!this.moveItemStackTo(stack, 0, 1, false)) return ItemStack.EMPTY;
+        }
+
+        if (stack.isEmpty()) {
+            slot.set(ItemStack.EMPTY);
+        } else {
+            slot.setChanged();
+        }
+
+        return copy;
+    }
+
+    @Override
+    public boolean stillValid(Player pPlayer) {
+        return pPlayer.distanceToSqr(be.getBlockPos().getX() + 0.5,
+                be.getBlockPos().getY() + 0.5,
+                be.getBlockPos().getZ() + 0.5) &lt;= 64.0;
+    }
+
+    private void addSlots(Inventory inv){
+        this.addSlot(new SlotItemHandler(be.getItems(), 0, 87, 147));
+
+        // 27 слотов инвентаря игрока
+        for (int row = 0; row &lt; 3; row++) {
+            for (int col = 0; col &lt; 9; col++) {
+                this.addSlot(new Slot(inv, col + row * 9 + 9, 33 + col * 18, 178 + row * 18));
+            }
+        }
     }
 }
 
@@ -1847,6 +2040,7 @@ public class NomadMenuTypes {
 <pre><code class="language-java">
 package ru.kiero.nomad.networking;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.network.NetworkEvent;
@@ -1870,7 +2064,9 @@ public class MainScreenPacket {
     private final int leather;
     private final int rare;
 
-    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
+    private final BlockPos blockPos;
+
+    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman, BlockPos blockPos) {
         this.lable = lable;
         this.levelOf = levelOf;
         this.exp = exp;
@@ -1883,6 +2079,8 @@ public class MainScreenPacket {
         this.stone = stone;
         this.leather = leather;
         this.rare = rare;
+
+        this.blockPos = blockPos;
     }
 
     public MainScreenPacket(FriendlyByteBuf buf){
@@ -1898,6 +2096,8 @@ public class MainScreenPacket {
         this.stone = buf.readInt();
         this.leather = buf.readInt();
         this.rare = buf.readInt();
+
+        this.blockPos = buf.readBlockPos();
     }
 
     public void write(FriendlyByteBuf buf){
@@ -1913,12 +2113,14 @@ public class MainScreenPacket {
         buf.writeInt(stone);
         buf.writeInt(leather);
         buf.writeInt(rare);
+
+        buf.writeBlockPos(blockPos);
     }
 
     public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
         NetworkEvent.Context ctx = sup.get();
 
-        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(&quot;&quot;), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare, hasShaman));
+        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(&quot;&quot;), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare, hasShaman, blockPos));
         ctx.setPacketHandled(true);
     }
 }
@@ -1943,6 +2145,53 @@ public class NomadNetworking {
 
     public static void reg(){
         CHANNEL.messageBuilder(MainScreenPacket.class, 1).encoder(MainScreenPacket::write).decoder(MainScreenPacket::new).consumerMainThread(MainScreenPacket::handle).add();
+        CHANNEL.messageBuilder(PresentPacket.class, 2).encoder(PresentPacket::write).decoder(PresentPacket::new).consumerMainThread(PresentPacket::handle).add();;
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/networking/PresentPacket.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.networking;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.NetworkHooks;
+import ru.kiero.nomad.blocks.TotemBlockEntity;
+import ru.kiero.nomad.menu.PresentMenu;
+
+import java.util.function.Supplier;
+
+public class PresentPacket {
+
+    private final BlockPos blockPos;
+
+    public PresentPacket(BlockPos blockPos) {
+        this.blockPos = blockPos;
+    }
+
+    public PresentPacket(FriendlyByteBuf buf){
+        this.blockPos = buf.readBlockPos();
+    }
+
+    public void write(FriendlyByteBuf buf){
+        buf.writeBlockPos(blockPos);
+    }
+
+    public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
+        NetworkEvent.Context ctx = sup.get();
+        ServerPlayer serverPlayer = ctx.getSender();
+        if (serverPlayer != null){
+            if (serverPlayer.level().getBlockEntity(blockPos) instanceof TotemBlockEntity be) {
+                NetworkHooks.openScreen(serverPlayer, be, buf -&gt; buf.writeBlockPos(blockPos));
+            }
+        }
     }
 }
 
