@@ -1006,6 +1006,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.goals.HunterMeleeAttackGoal;
+import ru.kiero.nomad.entity.goals.HunterNearestAttackableTargetGoal;
 import ru.kiero.nomad.entity.goals.ReturnToCampGoal;
 
 import java.util.UUID;
@@ -1030,10 +1032,10 @@ public class NomadEntity extends PathfinderMob {
     protected void registerGoals() {
         super.registerGoals();
         goalSelector.addGoal(0, new FloatGoal(this));
-        if (this.getProfession() == Profession.HUNTER) {
-            this.targetSelector.addGoal(1, new NearestAttackableTargetGoal&lt;&gt;(this, Monster.class, true));
-            goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.0, true));
-        }
+
+        this.targetSelector.addGoal(1, new HunterNearestAttackableTargetGoal(this, Monster.class, true));
+        goalSelector.addGoal(1, new HunterMeleeAttackGoal(this, 1.0, true));
+
         goalSelector.addGoal(2, new ReturnToCampGoal(this, 0.5));
         goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8F));
         goalSelector.addGoal(4, new RandomStrollGoal(this, 1.0));
@@ -1150,6 +1152,85 @@ public enum RelationStage {
             if(relation &gt;= p.relation) return p;
         }
         return NEUTRAL;
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/entity/goals/HunterMeleeAttackGoal.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.entity.goals;
+
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import ru.kiero.nomad.entity.NomadEntity;
+import ru.kiero.nomad.entity.Profession;
+
+public class HunterMeleeAttackGoal extends MeleeAttackGoal {
+
+    private NomadEntity nomad;
+
+    public HunterMeleeAttackGoal(PathfinderMob pMob, double pSpeedModifier, boolean pFollowingTargetEvenIfNotSeen) {
+        super(pMob, pSpeedModifier, pFollowingTargetEvenIfNotSeen);
+        if (pMob instanceof NomadEntity ne){
+            this.nomad = ne;
+        }
+    }
+
+    @Override
+    public boolean canUse() {
+        if (nomad.getProfession() == Profession.HUNTER) {
+            return super.canUse();
+        }else{
+            return false;
+        }
+    }
+
+    @Override
+    public boolean canContinueToUse() {
+        if (nomad.getProfession() == Profession.HUNTER) {
+            return super.canContinueToUse();
+        }else{
+            return false;
+        }
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/entity/goals/HunterNearestAttackableTargetGoal.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.entity.goals;
+
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import ru.kiero.nomad.entity.NomadEntity;
+import ru.kiero.nomad.entity.Profession;
+
+public class HunterNearestAttackableTargetGoal extends NearestAttackableTargetGoal&lt;NomadEntity&gt; {
+
+    private NomadEntity nomad;
+
+    public HunterNearestAttackableTargetGoal(Mob pMob, Class pTargetType, boolean pMustSee) {
+        super(pMob, pTargetType, pMustSee);
+        if (pMob instanceof NomadEntity ne){
+            this.nomad = ne;
+        }
+    }
+
+    @Override
+    public boolean canUse() {
+        if (nomad.getProfession() == Profession.HUNTER){
+            return super.canUse();
+        }else{
+            return false;
+        }
     }
 }
 
