@@ -4,8 +4,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.saveddata.SavedData;
 import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.entity.NomadEntity;
+import ru.kiero.nomad.entity.Profession;
 
 import java.util.*;
 
@@ -16,6 +19,7 @@ public class CampData extends SavedData {
 
     public static final String DATA_NAME = Nomad.MOD_ID + "_camp";
     public static final List<Integer> expForLevel = List.of(100, 200, 500, 1000, 2000);
+    private ServerLevel serverLevel;
 
     @Override
     public CompoundTag save(CompoundTag pCompoundTag) {
@@ -35,6 +39,17 @@ public class CampData extends SavedData {
                 playerList.add(playerTag);
             }
             tag.put("friendship", playerList);
+
+            //Citizen
+            ListTag citizenList = new ListTag();
+
+            for (int i=0; i<CAMPS.get(uuid).getList("citizen", ListTag.TAG_COMPOUND).size(); i++){
+                CompoundTag citizenTag = new CompoundTag();
+                citizenTag.putUUID("citizenUUID", CAMPS.get(uuid).getList("citizen", ListTag.TAG_COMPOUND).getCompound(i).getUUID("citizenUUID"));
+                citizenTag.putInt("citizenProfession", CAMPS.get(uuid).getList("citizen", ListTag.TAG_COMPOUND).getCompound(i).getInt("citizenProfession"));
+                citizenList.add(citizenTag);
+            }
+            tag.put("citizen", citizenList);
 
             CompoundTag resources = new CompoundTag();
             resources.putInt("food", CAMPS.get(uuid).getCompound("resources").getInt("food"));
@@ -79,6 +94,20 @@ public class CampData extends SavedData {
             }
             tagP.put("friendship", newPlayerList);
 
+            //Citizen
+            ListTag citizenList = uuidTag.getList("citizen", ListTag.TAG_COMPOUND);
+            ListTag newCitizenList = new ListTag();
+
+            for (int j=0; j<citizenList.size(); j++){
+                CompoundTag citizenTag = citizenList.getCompound(j);
+                CompoundTag newTag = new CompoundTag();
+
+                newTag.putUUID("citizenUUID", citizenTag.getUUID("citizenUUID"));
+                newTag.putInt("citizenProfession", citizenTag.getInt("citizenProfession"));
+                newCitizenList.add(newTag);
+            }
+            tagP.put("citizen", newCitizenList);
+
             CompoundTag resources = new CompoundTag();
             resources.putInt("food", uuidTag.getCompound("resources").getInt("food"));
             resources.putInt("wood", uuidTag.getCompound("resources").getInt("wood"));
@@ -98,7 +127,9 @@ public class CampData extends SavedData {
     }
 
     public static CampData get(ServerLevel serverLevel){
-        return serverLevel.getDataStorage().computeIfAbsent(CampData::load, CampData::new, DATA_NAME);
+        CampData data = serverLevel.getDataStorage().computeIfAbsent(CampData::load, CampData::new, DATA_NAME);
+        data.serverLevel = serverLevel;
+        return data;
     }
 
     public UUID createCamp(BlockPos blockPos){
@@ -156,6 +187,50 @@ public class CampData extends SavedData {
             if(CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i).getUUID("playerUUID").equals(player)){
                 friendship = CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i).getInt("playerValue");
                 return friendship;
+            }
+        }
+        return 0;
+    }
+    public List<UUID> getCitizens(UUID uuid){
+        ListTag citizenList = CAMPS.get(uuid).getList("citizen", ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return null;
+        List<UUID> citizens = new ArrayList<>();
+        for (int i=0; i<citizenList.size(); i++){
+            CompoundTag citizenTag = citizenList.getCompound(i);
+            citizens.add(citizenTag.getUUID("citizen"));
+        }
+        return citizens;
+    }
+    public void addCitizen(UUID campUUID, UUID citizenUUID){
+        ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()){
+            CAMPS.get(campUUID).put("citizen", new ListTag());
+        }
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("citizenUUID", citizenUUID);
+        citizenList.add(tag);
+
+        setDirty();
+    }
+    public boolean hasCitizen(UUID campUUID, UUID citizenUUID){
+        ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return false;
+        for (int i=0; i<citizenList.size(); i++){
+            CompoundTag tag = citizenList.getCompound(i);
+            if (citizenUUID.equals(tag.getUUID("citizenUUID"))){
+                return true;
+            }
+        }
+        return false;
+    }
+    public int hasProfession(UUID campUUID, Profession p){
+        ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return 0;
+        for (int i=0; i<citizenList.size(); i++){
+            CompoundTag tag = citizenList.getCompound(i);
+
+            if (tag.getInt("citizenProfession") == Profession.TRADER.getId()){
+                return 1;
             }
         }
         return 0;

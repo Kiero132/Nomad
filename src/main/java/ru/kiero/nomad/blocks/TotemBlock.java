@@ -15,6 +15,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.Profession;
 import ru.kiero.nomad.networking.MainScreenPacket;
 import ru.kiero.nomad.networking.NomadNetworking;
 
@@ -56,7 +57,7 @@ public class TotemBlock extends Block implements EntityBlock {
             UUID camp = data.getCampAt(pPos);
             NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -> serverPlayer), new MainScreenPacket(
                     data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getFriendship(camp, pPlayer.getUUID()), data.getRadius(camp),
-                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp)));
+                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.TRADER)));
             return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;

@@ -22,6 +22,7 @@ public class TotemMainScreen extends Screen {
     private final int exp;
     private final int friendship;
     private final int radius;
+    private final int hasShaman;
 
     private final int food;
     private final int wood;
@@ -31,7 +32,7 @@ public class TotemMainScreen extends Screen {
 
     public static final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, "textures/gui/totem.png");
 
-    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare) {
+    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
         super(pTitle);
         this.imageWidth = 132;
         this.imageHeight = 233;
@@ -41,6 +42,7 @@ public class TotemMainScreen extends Screen {
         this.exp = exp;
         this.friendship = friendship;
         this.radius = radius;
+        this.hasShaman = hasShaman;
 
         this.food = food;
         this.wood = wood;

@@ -15,6 +15,7 @@ public class MainScreenPacket {
     private final int exp;
     private final int friendship;
     private final int radius;
+    private final int hasShaman;
 
     private final int food;
     private final int wood;
@@ -22,12 +23,13 @@ public class MainScreenPacket {
     private final int leather;
     private final int rare;
 
-    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare) {
+    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
         this.lable = lable;
         this.levelOf = levelOf;
         this.exp = exp;
         this.friendship = friendship;
         this.radius = radius;
+        this.hasShaman = hasShaman;
 
         this.food = food;
         this.wood = wood;
@@ -42,6 +44,7 @@ public class MainScreenPacket {
         this.exp = buf.readInt();
         this.friendship = buf.readInt();
         this.radius = buf.readInt();
+        this.hasShaman = buf.readInt();
 
         this.food = buf.readInt();
         this.wood = buf.readInt();
@@ -56,6 +59,7 @@ public class MainScreenPacket {
         buf.writeInt(exp);
         buf.writeInt(friendship);
         buf.writeInt(radius);
+        buf.writeInt(hasShaman);
 
         buf.writeInt(food);
         buf.writeInt(wood);
@@ -67,7 +71,7 @@ public class MainScreenPacket {
     public void handle(Supplier<NetworkEvent.Context> sup){
         NetworkEvent.Context ctx = sup.get();
 
-        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(""), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare));
+        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(""), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare, hasShaman));
         ctx.setPacketHandled(true);
     }
 }

@@ -3,6 +3,7 @@ package ru.kiero.nomad.client;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import ru.kiero.nomad.Nomad;
@@ -14,6 +15,7 @@ public class NomadRenderer extends MobRenderer<NomadEntity, NomadModel> {
 
     public NomadRenderer(EntityRendererProvider.Context pContext) {
         super(pContext, new NomadModel(pContext.bakeLayer(NomadModel.LAYER_LOCATION)), 0.5f);
+        this.addLayer(new ItemInHandLayer<>(this, pContext.getItemInHandRenderer()));
     }
     @Override
     public ResourceLocation getTextureLocation(NomadEntity pEntity) {

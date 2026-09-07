@@ -5,6 +5,9 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
@@ -14,6 +17,9 @@ import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.goals.HunterMeleeAttackGoal;
@@ -72,6 +78,9 @@ public class NomadEntity extends PathfinderMob {
     //Setter
     public void setProfession(Profession profession){
         this.entityData.set(DATA_PROFESSION_ID, profession.getId());
+        if (profession == Profession.HUNTER){
+            this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        }
     }
     public void setCampUUID(UUID uuid){
         this.entityData.set(CAMP_UUID, uuid.toString());
@@ -94,5 +103,17 @@ public class NomadEntity extends PathfinderMob {
         if (pCompound.contains("campUUID")){
             this.setCampUUID(pCompound.getUUID("campUUID"));
         }
+    }
+
+    @Override
+    protected InteractionResult mobInteract(Player pPlayer, InteractionHand pHand) {
+        if (this.getProfession() == Profession.SHAMAN){
+            if (pPlayer.level().isClientSide()) return InteractionResult.SUCCESS;
+            if (pPlayer instanceof ServerPlayer serverPlayer){
+                //TODO Trader menu
+                return InteractionResult.CONSUME;
+            }
+        }
+        return InteractionResult.PASS;
     }
 }

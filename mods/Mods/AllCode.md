@@ -332,6 +332,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.Nullable;
 import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.Profession;
 import ru.kiero.nomad.networking.MainScreenPacket;
 import ru.kiero.nomad.networking.NomadNetworking;
 
@@ -373,7 +374,7 @@ public class TotemBlock extends Block implements EntityBlock {
             UUID camp = data.getCampAt(pPos);
             NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -&gt; serverPlayer), new MainScreenPacket(
                     data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getFriendship(camp, pPlayer.getUUID()), data.getRadius(camp),
-                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp)));
+                    data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.TRADER)));
             return InteractionResult.CONSUME;
         }
         return InteractionResult.PASS;
@@ -391,20 +392,13 @@ package ru.kiero.nomad.blocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.MenuProvider;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import ru.kiero.nomad.init.NomadBlockEntities;
-
 import java.util.UUID;
 
 public class TotemBlockEntity extends BlockEntity implements ContainerData {
@@ -505,6 +499,7 @@ package ru.kiero.nomad.client;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import ru.kiero.nomad.Nomad;
@@ -516,6 +511,7 @@ public class NomadRenderer extends MobRenderer&lt;NomadEntity, NomadModel&gt; {
 
     public NomadRenderer(EntityRendererProvider.Context pContext) {
         super(pContext, new NomadModel(pContext.bakeLayer(NomadModel.LAYER_LOCATION)), 0.5f);
+        this.addLayer(new ItemInHandLayer&lt;&gt;(this, pContext.getItemInHandRenderer()));
     }
     @Override
     public ResourceLocation getTextureLocation(NomadEntity pEntity) {
@@ -557,6 +553,7 @@ public class TotemMainScreen extends Screen {
     private final int exp;
     private final int friendship;
     private final int radius;
+    private final int hasShaman;
 
     private final int food;
     private final int wood;
@@ -566,7 +563,7 @@ public class TotemMainScreen extends Screen {
 
     public static final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/totem.png&quot;);
 
-    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare) {
+    public TotemMainScreen(Component pTitle, String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
         super(pTitle);
         this.imageWidth = 132;
         this.imageHeight = 233;
@@ -576,6 +573,7 @@ public class TotemMainScreen extends Screen {
         this.exp = exp;
         this.friendship = friendship;
         this.radius = radius;
+        this.hasShaman = hasShaman;
 
         this.food = food;
         this.wood = wood;
@@ -724,8 +722,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.saveddata.SavedData;
 import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.entity.NomadEntity;
+import ru.kiero.nomad.entity.Profession;
 
 import java.util.*;
 
@@ -736,6 +737,7 @@ public class CampData extends SavedData {
 
     public static final String DATA_NAME = Nomad.MOD_ID + &quot;_camp&quot;;
     public static final List&lt;Integer&gt; expForLevel = List.of(100, 200, 500, 1000, 2000);
+    private ServerLevel serverLevel;
 
     @Override
     public CompoundTag save(CompoundTag pCompoundTag) {
@@ -755,6 +757,17 @@ public class CampData extends SavedData {
                 playerList.add(playerTag);
             }
             tag.put(&quot;friendship&quot;, playerList);
+
+            //Citizen
+            ListTag citizenList = new ListTag();
+
+            for (int i=0; i&lt;CAMPS.get(uuid).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND).size(); i++){
+                CompoundTag citizenTag = new CompoundTag();
+                citizenTag.putUUID(&quot;citizenUUID&quot;, CAMPS.get(uuid).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND).getCompound(i).getUUID(&quot;citizenUUID&quot;));
+                citizenTag.putInt(&quot;citizenProfession&quot;, CAMPS.get(uuid).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND).getCompound(i).getInt(&quot;citizenProfession&quot;));
+                citizenList.add(citizenTag);
+            }
+            tag.put(&quot;citizen&quot;, citizenList);
 
             CompoundTag resources = new CompoundTag();
             resources.putInt(&quot;food&quot;, CAMPS.get(uuid).getCompound(&quot;resources&quot;).getInt(&quot;food&quot;));
@@ -799,6 +812,20 @@ public class CampData extends SavedData {
             }
             tagP.put(&quot;friendship&quot;, newPlayerList);
 
+            //Citizen
+            ListTag citizenList = uuidTag.getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+            ListTag newCitizenList = new ListTag();
+
+            for (int j=0; j&lt;citizenList.size(); j++){
+                CompoundTag citizenTag = citizenList.getCompound(j);
+                CompoundTag newTag = new CompoundTag();
+
+                newTag.putUUID(&quot;citizenUUID&quot;, citizenTag.getUUID(&quot;citizenUUID&quot;));
+                newTag.putInt(&quot;citizenProfession&quot;, citizenTag.getInt(&quot;citizenProfession&quot;));
+                newCitizenList.add(newTag);
+            }
+            tagP.put(&quot;citizen&quot;, newCitizenList);
+
             CompoundTag resources = new CompoundTag();
             resources.putInt(&quot;food&quot;, uuidTag.getCompound(&quot;resources&quot;).getInt(&quot;food&quot;));
             resources.putInt(&quot;wood&quot;, uuidTag.getCompound(&quot;resources&quot;).getInt(&quot;wood&quot;));
@@ -818,7 +845,9 @@ public class CampData extends SavedData {
     }
 
     public static CampData get(ServerLevel serverLevel){
-        return serverLevel.getDataStorage().computeIfAbsent(CampData::load, CampData::new, DATA_NAME);
+        CampData data = serverLevel.getDataStorage().computeIfAbsent(CampData::load, CampData::new, DATA_NAME);
+        data.serverLevel = serverLevel;
+        return data;
     }
 
     public UUID createCamp(BlockPos blockPos){
@@ -876,6 +905,50 @@ public class CampData extends SavedData {
             if(CAMPS.get(uuid).getList(&quot;friendship&quot;, ListTag.TAG_COMPOUND).getCompound(i).getUUID(&quot;playerUUID&quot;).equals(player)){
                 friendship = CAMPS.get(uuid).getList(&quot;friendship&quot;, ListTag.TAG_COMPOUND).getCompound(i).getInt(&quot;playerValue&quot;);
                 return friendship;
+            }
+        }
+        return 0;
+    }
+    public List&lt;UUID&gt; getCitizens(UUID uuid){
+        ListTag citizenList = CAMPS.get(uuid).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return null;
+        List&lt;UUID&gt; citizens = new ArrayList&lt;&gt;();
+        for (int i=0; i&lt;citizenList.size(); i++){
+            CompoundTag citizenTag = citizenList.getCompound(i);
+            citizens.add(citizenTag.getUUID(&quot;citizen&quot;));
+        }
+        return citizens;
+    }
+    public void addCitizen(UUID campUUID, UUID citizenUUID){
+        ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()){
+            CAMPS.get(campUUID).put(&quot;citizen&quot;, new ListTag());
+        }
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID(&quot;citizenUUID&quot;, citizenUUID);
+        citizenList.add(tag);
+
+        setDirty();
+    }
+    public boolean hasCitizen(UUID campUUID, UUID citizenUUID){
+        ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return false;
+        for (int i=0; i&lt;citizenList.size(); i++){
+            CompoundTag tag = citizenList.getCompound(i);
+            if (citizenUUID.equals(tag.getUUID(&quot;citizenUUID&quot;))){
+                return true;
+            }
+        }
+        return false;
+    }
+    public int hasProfession(UUID campUUID, Profession p){
+        ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return 0;
+        for (int i=0; i&lt;citizenList.size(); i++){
+            CompoundTag tag = citizenList.getCompound(i);
+
+            if (tag.getInt(&quot;citizenProfession&quot;) == Profession.TRADER.getId()){
+                return 1;
             }
         }
         return 0;
@@ -995,6 +1068,9 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
@@ -1004,6 +1080,9 @@ import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.goals.HunterMeleeAttackGoal;
@@ -1062,6 +1141,9 @@ public class NomadEntity extends PathfinderMob {
     //Setter
     public void setProfession(Profession profession){
         this.entityData.set(DATA_PROFESSION_ID, profession.getId());
+        if (profession == Profession.HUNTER){
+            this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
+        }
     }
     public void setCampUUID(UUID uuid){
         this.entityData.set(CAMP_UUID, uuid.toString());
@@ -1084,6 +1166,18 @@ public class NomadEntity extends PathfinderMob {
         if (pCompound.contains(&quot;campUUID&quot;)){
             this.setCampUUID(pCompound.getUUID(&quot;campUUID&quot;));
         }
+    }
+
+    @Override
+    protected InteractionResult mobInteract(Player pPlayer, InteractionHand pHand) {
+        if (this.getProfession() == Profession.SHAMAN){
+            if (pPlayer.level().isClientSide()) return InteractionResult.SUCCESS;
+            if (pPlayer instanceof ServerPlayer serverPlayer){
+                //TODO Trader menu
+                return InteractionResult.CONSUME;
+            }
+        }
+        return InteractionResult.PASS;
     }
 }
 
@@ -1734,6 +1828,7 @@ public class MainScreenPacket {
     private final int exp;
     private final int friendship;
     private final int radius;
+    private final int hasShaman;
 
     private final int food;
     private final int wood;
@@ -1741,12 +1836,13 @@ public class MainScreenPacket {
     private final int leather;
     private final int rare;
 
-    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare) {
+    public MainScreenPacket(String lable, int levelOf, int exp, int friendship, int radius, int food, int wood, int stone, int leather, int rare, int hasShaman) {
         this.lable = lable;
         this.levelOf = levelOf;
         this.exp = exp;
         this.friendship = friendship;
         this.radius = radius;
+        this.hasShaman = hasShaman;
 
         this.food = food;
         this.wood = wood;
@@ -1761,6 +1857,7 @@ public class MainScreenPacket {
         this.exp = buf.readInt();
         this.friendship = buf.readInt();
         this.radius = buf.readInt();
+        this.hasShaman = buf.readInt();
 
         this.food = buf.readInt();
         this.wood = buf.readInt();
@@ -1775,6 +1872,7 @@ public class MainScreenPacket {
         buf.writeInt(exp);
         buf.writeInt(friendship);
         buf.writeInt(radius);
+        buf.writeInt(hasShaman);
 
         buf.writeInt(food);
         buf.writeInt(wood);
@@ -1786,7 +1884,7 @@ public class MainScreenPacket {
     public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
         NetworkEvent.Context ctx = sup.get();
 
-        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(&quot;&quot;), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare));
+        NomadClient.openScreen(sup, new TotemMainScreen(Component.literal(&quot;&quot;), lable, levelOf, exp, friendship, radius, food, wood, stone, leather, rare, hasShaman));
         ctx.setPacketHandled(true);
     }
 }
