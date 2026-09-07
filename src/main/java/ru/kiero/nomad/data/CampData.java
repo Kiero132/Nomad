@@ -197,10 +197,11 @@ public class CampData extends SavedData {
         List<UUID> citizens = new ArrayList<>();
         for (int i=0; i<citizenList.size(); i++){
             CompoundTag citizenTag = citizenList.getCompound(i);
-            citizens.add(citizenTag.getUUID("citizen"));
+            citizens.add(citizenTag.getUUID("citizenUUID"));
         }
         return citizens;
     }
+
     public void addCitizen(UUID campUUID, UUID citizenUUID){
         ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
         if (citizenList.isEmpty()){
@@ -208,7 +209,7 @@ public class CampData extends SavedData {
         }
         CompoundTag tag = new CompoundTag();
         tag.putUUID("citizenUUID", citizenUUID);
-        tag.putInt("citizenProfession", 0);
+        tag.putInt("citizenProfession", Profession.NONE.getId());
         citizenList.add(tag);
 
         setDirty();
@@ -242,12 +243,26 @@ public class CampData extends SavedData {
         for (int i=0; i<citizenList.size(); i++){
             CompoundTag tag = citizenList.getCompound(i);
 
-            if (tag.getInt("citizenProfession") == Profession.TRADER.getId()){
+            if (tag.getInt("citizenProfession") == p.getId()){
                 return 1;
             }
         }
         return 0;
     }
+    public void changeProfession(UUID campUUID, UUID citizenUUID, Profession p){
+        ListTag citizenList = CAMPS.get(campUUID).getList("citizen", ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return;
+        for (int i=0; i<citizenList.size(); i++){
+            CompoundTag tag = citizenList.getCompound(i);
+
+            if (tag.getUUID("citizenUUID") == citizenUUID){
+                tag.remove("citizenProfession");
+                tag.putInt("citizenProfession", p.getId());
+            }
+        }
+        setDirty();
+    }
+
     public void addFriendship(UUID uuid, UUID player, int value){
         if (CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).isEmpty()) {
             CAMPS.get(uuid).put("friendship", new ListTag());

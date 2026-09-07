@@ -915,10 +915,11 @@ public class CampData extends SavedData {
         List&lt;UUID&gt; citizens = new ArrayList&lt;&gt;();
         for (int i=0; i&lt;citizenList.size(); i++){
             CompoundTag citizenTag = citizenList.getCompound(i);
-            citizens.add(citizenTag.getUUID(&quot;citizen&quot;));
+            citizens.add(citizenTag.getUUID(&quot;citizenUUID&quot;));
         }
         return citizens;
     }
+
     public void addCitizen(UUID campUUID, UUID citizenUUID){
         ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
         if (citizenList.isEmpty()){
@@ -926,7 +927,7 @@ public class CampData extends SavedData {
         }
         CompoundTag tag = new CompoundTag();
         tag.putUUID(&quot;citizenUUID&quot;, citizenUUID);
-        tag.putInt(&quot;citizenProfession&quot;, 0);
+        tag.putInt(&quot;citizenProfession&quot;, Profession.NONE.getId());
         citizenList.add(tag);
 
         setDirty();
@@ -960,12 +961,26 @@ public class CampData extends SavedData {
         for (int i=0; i&lt;citizenList.size(); i++){
             CompoundTag tag = citizenList.getCompound(i);
 
-            if (tag.getInt(&quot;citizenProfession&quot;) == Profession.TRADER.getId()){
+            if (tag.getInt(&quot;citizenProfession&quot;) == p.getId()){
                 return 1;
             }
         }
         return 0;
     }
+    public void changeProfession(UUID campUUID, UUID citizenUUID, Profession p){
+        ListTag citizenList = CAMPS.get(campUUID).getList(&quot;citizen&quot;, ListTag.TAG_COMPOUND);
+        if (citizenList.isEmpty()) return;
+        for (int i=0; i&lt;citizenList.size(); i++){
+            CompoundTag tag = citizenList.getCompound(i);
+
+            if (tag.getUUID(&quot;citizenUUID&quot;) == citizenUUID){
+                tag.remove(&quot;citizenProfession&quot;);
+                tag.putInt(&quot;citizenProfession&quot;, p.getId());
+            }
+        }
+        setDirty();
+    }
+
     public void addFriendship(UUID uuid, UUID player, int value){
         if (CAMPS.get(uuid).getList(&quot;friendship&quot;, ListTag.TAG_COMPOUND).isEmpty()) {
             CAMPS.get(uuid).put(&quot;friendship&quot;, new ListTag());
@@ -1158,8 +1173,8 @@ public class NomadEntity extends PathfinderMob {
             this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.IRON_SWORD));
         }else{
             this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-
         }
+        data.changeProfession(this.getCampUUID(), this.getUUID(), profession);
     }
     public void setCampUUID(UUID uuid){
         this.entityData.set(CAMP_UUID, uuid.toString());
@@ -1638,6 +1653,7 @@ public class NomadEvents {
         if (nomad != null &amp;&amp; uuid != null){
             nomad.setCampUUID(uuid);
             source.sendSuccess(() -&gt; Component.literal(&quot;Номад привязан: &quot; + nomad.getCampUUID()), false);
+            data.addCitizen(nomad.getCampUUID(), nomad.getUUID());
             return 1;
         }
         source.sendFailure(Component.literal(&quot;Рядом нет номадов&quot;));
