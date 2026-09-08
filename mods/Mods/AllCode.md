@@ -600,6 +600,8 @@ import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.api.GuiAPI;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.menu.PresentMenu;
+import ru.kiero.nomad.networking.GiftPacket;
+import ru.kiero.nomad.networking.NomadNetworking;
 
 public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 
@@ -643,7 +645,7 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
         pGuiGraphics.blit(RESOURCE_LOCATION, leftPos, topPos, 0, 0, this.imageWidth, this.imageHeight);
 
         //Friendship progressbar
-        float barWidthTemp = (float) (menu.getFriendship() + 100) /200;
+        float barWidthTemp = (float) (menu.getFriendship() + 1000) /2000;
         int barWidth = Math.round(142*barWidthTemp);
         pGuiGraphics.blit(BARS, leftPos+35, topPos+51, 0, 0, barWidth, 12);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;-100&quot;, this.leftPos+31, this.topPos+65, 0x431c10, false, 0.5f);
@@ -688,7 +690,7 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
     }
 
     private void giveGift(Button button){
-
+        NomadNetworking.CHANNEL.sendToServer(new GiftPacket());
     }
 }
 
@@ -802,7 +804,7 @@ public class TotemMainScreen extends Screen {
         GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+45, 0x35120a, false, 0.8f);
 
         //Friendship progressbar
-        float barWidthTemp = (float) (friendship + 100) /200;
+        float barWidthTemp = (float) (friendship + 1000) /2000;
         int barWidth = Math.round(84*barWidthTemp);
         pGuiGraphics.blit(BG, leftPos+22, topPos+52, 0, imageHeight+1, barWidth, 8);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;-100&quot;, this.leftPos+15, this.topPos+62, 0x431c10, false, 0.5f);
@@ -1175,10 +1177,10 @@ public class CampData extends SavedData {
             CompoundTag tag = CAMPS.get(uuid).getList(&quot;friendship&quot;, ListTag.TAG_COMPOUND).getCompound(i);
             if (tag.getUUID(&quot;playerUUID&quot;).equals(player)) {
                     int res = tag.getInt(&quot;playerValue&quot;) + value;
-                    if (res &gt; 100) {
-                        res = 100;
-                    } else if (res &lt; -100) {
-                        res = -100;
+                    if (res &gt; 1000) {
+                        res = 1000;
+                    } else if (res &lt; -1000) {
+                        res = -1000;
                     }
                     tag.remove(&quot;playerValue&quot;);
                     tag.putInt(&quot;playerValue&quot;, res);
@@ -1222,8 +1224,19 @@ public class CampData extends SavedData {
         CAMPS.get(uuid).putInt(&quot;radius&quot;, getRadiusOf(newLevel));
         setDirty();
     }
-    public void addResources(UUID uuid, String resourcesType, int value){
+    public void addResources(UUID uuid, ResourceCategory category, int value){
         CompoundTag resources = CAMPS.get(uuid).getCompound(&quot;resources&quot;);
+        String resourcesType;
+        switch (category){
+            case FOOD -&gt; resourcesType = &quot;food&quot;;
+            case WOOD -&gt; resourcesType = &quot;wood&quot;;
+            case STONE -&gt; resourcesType = &quot;stone&quot;;
+            case LEATHER -&gt; resourcesType = &quot;leather&quot;;
+            case RARE -&gt; resourcesType = &quot;rare&quot;;
+            default -&gt; {
+                return;
+            }
+        };
 
         int countCopy = resources.getInt(resourcesType);
         resources.remove(resourcesType);
@@ -1265,6 +1278,65 @@ public class CampData extends SavedData {
         return res;
     }
 }
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/data/ResourceCategory.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.data;
+
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+public enum ResourceCategory {
+    NONE(-1),
+    FOOD(0),
+    WOOD(1),
+    STONE(2),
+    LEATHER(3),
+    RARE(4);
+
+    public final int id;
+
+    ResourceCategory(int id) {
+        this.id = id;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public static ResourceCategory fromStack(ItemStack item){
+        if (item.is(ItemTags.FISHES) || item.is(Items.BREAD) || item.is(Items.COOKED_CHICKEN) || item.is(Items.COOKED_BEEF) ||
+        item.is(Items.COOKED_COD) || item.is(Items.COOKED_MUTTON) || item.is(Items.COOKED_PORKCHOP) || item.is(Items.COOKED_RABBIT) || item.is(Items.COOKED_SALMON) ||
+        item.is(Items.COOKIE) || item.is(Items.CARROT) || item.is(Items.POTATO) || item.is(Items.APPLE) || item.is(Items.MELON)) return FOOD;
+        if (item.is(ItemTags.LOGS) || item.is(ItemTags.PLANKS)) return WOOD;
+        if (item.is(Items.STONE) || item.is(Items.COBBLESTONE) || item.is(Items.DIORITE) || item.is(Items.GRANITE)) return STONE;
+        if (item.is(Items.LEATHER)) return LEATHER;
+        if (item.is(ItemTags.COALS) || item.is(Items.COPPER_INGOT) || item.is(Items.IRON_INGOT) || item.is(Items.GOLD_INGOT) || item.is(Items.DIAMOND) || item.is(Items.NETHERITE_INGOT)) return RARE;
+        return NONE;
+    }
+
+    public static int repOf(ItemStack item){
+        if (item.is(ItemTags.FISHES) || item.is(Items.COOKIE) ||
+                item.is(Items.CARROT) || item.is(Items.POTATO) ||
+                item.is(Items.APPLE) || item.is(Items.MELON) ||
+                fromStack(item).getId() == WOOD.getId() || fromStack(item).getId() == STONE.getId() ||
+                item.is(ItemTags.COALS) || item.is(Items.COPPER_INGOT)) return 1;
+        if (item.is(Items.COOKED_CHICKEN) || item.is(Items.COOKED_BEEF) ||
+                item.is(Items.COOKED_COD) || item.is(Items.COOKED_MUTTON) ||
+                item.is(Items.COOKED_PORKCHOP) || item.is(Items.COOKED_RABBIT) ||
+                item.is(Items.COOKED_SALMON) || item.is(Items.BREAD) || fromStack(item).getId() == LEATHER.getId() ||
+                item.is(Items.IRON_INGOT) || item.is(Items.GOLD_INGOT)) return 2;
+        if (item.is(Items.DIAMOND)) return 3;
+        if (item.is(Items.NETHERITE_INGOT)) return 4;
+        return 0;
+    }
+}
+
 </code></pre>
 
 ---
@@ -2135,6 +2207,10 @@ public class PresentMenu extends AbstractContainerMenu implements ContainerData 
     public int getLeather()                 {return dataMenu.get(7);}
     public int getRare()                    {return dataMenu.get(8);}
 
+    public TotemBlockEntity getBlockEntity() {
+        return be;
+    }
+
     @Override
     public int get(int pIndex) {
         UUID camp = campData.getCampAt(be.getBlockPos());
@@ -2160,6 +2236,76 @@ public class PresentMenu extends AbstractContainerMenu implements ContainerData 
     @Override
     public int getCount() {
         return 9;
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/networking/GiftPacket.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.networking;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.network.NetworkEvent;
+import ru.kiero.nomad.blocks.TotemBlockEntity;
+import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.data.ResourceCategory;
+import ru.kiero.nomad.menu.PresentMenu;
+
+import java.util.UUID;
+import java.util.function.Supplier;
+
+public class GiftPacket {
+
+    public GiftPacket(){
+
+    }
+
+    public GiftPacket(FriendlyByteBuf buf){
+
+    }
+
+    public void write(FriendlyByteBuf buf){
+
+    }
+
+    public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
+        NetworkEvent.Context ctx = sup.get();
+
+        ServerPlayer serverPlayer = ctx.getSender();
+        if (serverPlayer == null) return;
+
+        if (serverPlayer.containerMenu instanceof PresentMenu menu){
+            TotemBlockEntity be = menu.getBlockEntity();
+            Level level = be.getLevel();
+            if (level.isClientSide()) return;
+            ItemStack gift = be.getItems().getStackInSlot(0);
+            CampData data = CampData.get((ServerLevel) level);
+
+            UUID campUUID = data.getCampAt(be.getBlockPos());
+
+            if (gift.isEmpty()){
+                serverPlayer.sendSystemMessage(Component.literal(&quot;Слот для подарка пуст&quot;));
+                return;
+            }
+
+            if (ResourceCategory.fromStack(gift).equals(ResourceCategory.NONE)){
+                serverPlayer.sendSystemMessage(Component.literal(&quot;Подарок не подходит&quot;));
+                return;
+            }
+
+            data.addResources(campUUID, ResourceCategory.fromStack(gift), gift.getCount());
+            data.addFriendship(campUUID, serverPlayer.getUUID(), ResourceCategory.repOf(gift)*gift.getCount());
+            gift.setCount(0);
+        }
     }
 }
 
@@ -2278,6 +2424,7 @@ public class NomadNetworking {
     public static void reg(){
         CHANNEL.messageBuilder(MainScreenPacket.class, 1).encoder(MainScreenPacket::write).decoder(MainScreenPacket::new).consumerMainThread(MainScreenPacket::handle).add();
         CHANNEL.messageBuilder(PresentPacket.class, 2).encoder(PresentPacket::write).decoder(PresentPacket::new).consumerMainThread(PresentPacket::handle).add();;
+        CHANNEL.messageBuilder(GiftPacket.class, 3).encoder(GiftPacket::write).decoder(GiftPacket::new).consumerMainThread(GiftPacket::handle).add();
     }
 }
 

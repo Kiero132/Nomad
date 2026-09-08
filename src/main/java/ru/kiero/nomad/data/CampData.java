@@ -275,10 +275,10 @@ public class CampData extends SavedData {
             CompoundTag tag = CAMPS.get(uuid).getList("friendship", ListTag.TAG_COMPOUND).getCompound(i);
             if (tag.getUUID("playerUUID").equals(player)) {
                     int res = tag.getInt("playerValue") + value;
-                    if (res > 100) {
-                        res = 100;
-                    } else if (res < -100) {
-                        res = -100;
+                    if (res > 1000) {
+                        res = 1000;
+                    } else if (res < -1000) {
+                        res = -1000;
                     }
                     tag.remove("playerValue");
                     tag.putInt("playerValue", res);
@@ -322,8 +322,19 @@ public class CampData extends SavedData {
         CAMPS.get(uuid).putInt("radius", getRadiusOf(newLevel));
         setDirty();
     }
-    public void addResources(UUID uuid, String resourcesType, int value){
+    public void addResources(UUID uuid, ResourceCategory category, int value){
         CompoundTag resources = CAMPS.get(uuid).getCompound("resources");
+        String resourcesType;
+        switch (category){
+            case FOOD -> resourcesType = "food";
+            case WOOD -> resourcesType = "wood";
+            case STONE -> resourcesType = "stone";
+            case LEATHER -> resourcesType = "leather";
+            case RARE -> resourcesType = "rare";
+            default -> {
+                return;
+            }
+        };
 
         int countCopy = resources.getInt(resourcesType);
         resources.remove(resourcesType);

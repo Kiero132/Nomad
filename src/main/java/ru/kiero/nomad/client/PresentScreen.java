@@ -13,6 +13,8 @@ import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.api.GuiAPI;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.menu.PresentMenu;
+import ru.kiero.nomad.networking.GiftPacket;
+import ru.kiero.nomad.networking.NomadNetworking;
 
 public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
 
@@ -56,7 +58,7 @@ public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
         pGuiGraphics.blit(RESOURCE_LOCATION, leftPos, topPos, 0, 0, this.imageWidth, this.imageHeight);
 
         //Friendship progressbar
-        float barWidthTemp = (float) (menu.getFriendship() + 100) /200;
+        float barWidthTemp = (float) (menu.getFriendship() + 1000) /2000;
         int barWidth = Math.round(142*barWidthTemp);
         pGuiGraphics.blit(BARS, leftPos+35, topPos+51, 0, 0, barWidth, 12);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, "-100", this.leftPos+31, this.topPos+65, 0x431c10, false, 0.5f);
@@ -101,6 +103,6 @@ public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
     }
 
     private void giveGift(Button button){
-
+        NomadNetworking.CHANNEL.sendToServer(new GiftPacket());
     }
 }

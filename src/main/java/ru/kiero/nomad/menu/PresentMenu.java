@@ -103,6 +103,10 @@ public class PresentMenu extends AbstractContainerMenu implements ContainerData 
     public int getLeather()                 {return dataMenu.get(7);}
     public int getRare()                    {return dataMenu.get(8);}
 
+    public TotemBlockEntity getBlockEntity() {
+        return be;
+    }
+
     @Override
     public int get(int pIndex) {
         UUID camp = campData.getCampAt(be.getBlockPos());

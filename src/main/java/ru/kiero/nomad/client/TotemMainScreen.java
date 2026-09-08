@@ -101,7 +101,7 @@ public class TotemMainScreen extends Screen {
         GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+45, 0x35120a, false, 0.8f);
 
         //Friendship progressbar
-        float barWidthTemp = (float) (friendship + 100) /200;
+        float barWidthTemp = (float) (friendship + 1000) /2000;
         int barWidth = Math.round(84*barWidthTemp);
         pGuiGraphics.blit(BG, leftPos+22, topPos+52, 0, imageHeight+1, barWidth, 8);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, "-100", this.leftPos+15, this.topPos+62, 0x431c10, false, 0.5f);
