@@ -314,6 +314,38 @@ public class Nomad {
 
 ---
 
+## src/main/java/ru/kiero/nomad/api/GuiAPI.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.api;
+
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+
+public class GuiAPI {
+
+    public static void drawSmallString(GuiGraphics guiGraphics, Font font, String text, int x, int y, int color, boolean shadow, float scale){
+        guiGraphics.pose().pushPose();
+        guiGraphics.pose().scale(scale, scale, 1.0f);
+
+        guiGraphics.drawString(font, text, x/scale, y/scale, color, shadow);
+
+        guiGraphics.pose().popPose();
+    }
+
+    public static String normalizeText(int value){
+        if (value &lt; 1000){
+            return String.valueOf(value);
+        }else{
+            return String.valueOf(value/1000)+&quot;k&quot;;
+        }
+    }
+}
+
+</code></pre>
+
+---
+
 ## src/main/java/ru/kiero/nomad/blocks/TotemBlock.java
 
 <pre><code class="language-java">
@@ -556,6 +588,7 @@ public class NomadRenderer extends MobRenderer&lt;NomadEntity, NomadModel&gt; {
 package ru.kiero.nomad.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -563,11 +596,14 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.api.GuiAPI;
+import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.menu.PresentMenu;
 
 public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 
     public static final ResourceLocation RESOURCE_LOCATION = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/present.png&quot;);
+    public static final ResourceLocation BARS = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/bars.png&quot;);
 
     public PresentScreen(PresentMenu pMenu, Inventory inv, Component pTitle) {
         super(pMenu, inv, pTitle);
@@ -591,6 +627,45 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
         super.renderBackground(pGuiGraphics);
         RenderSystem.setShaderTexture(0, RESOURCE_LOCATION);
         pGuiGraphics.blit(RESOURCE_LOCATION, leftPos, topPos, 0, 0, this.imageWidth, this.imageHeight);
+
+        //Friendship progressbar
+        float barWidthTemp = (float) (menu.getFriendship() + 100) /200;
+        int barWidth = Math.round(142*barWidthTemp);
+        pGuiGraphics.blit(BARS, leftPos+35, topPos+51, 0, 0, barWidth, 12);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;-100&quot;, this.leftPos+31, this.topPos+65, 0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;100&quot;, this.leftPos+172, this.topPos+65, 0x431c10, false, 0.5f);
+
+        //Level
+        String text = &quot;Уровень: &quot; + String.valueOf(menu.getLevelOf());
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2-5, this.topPos+65,0x431c10, false, 0.6f);
+
+        //Exp Progressbar
+        barWidthTemp = (float) menu.getExp()/ CampData.expForLevel.get(menu.getLevelOf()-1);
+        barWidth = Math.round(40*barWidthTemp);
+        pGuiGraphics.blit(BARS, leftPos+22, topPos+52, 0, topPos+242, barWidth, 8);
+
+        //Exp
+        text = String.valueOf(menu.getExp()) + &quot;/&quot; + String.valueOf(CampData.expForLevel.get(menu.getLevelOf()-1));
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2-8, this.topPos+85,0x431c10, false, 0.6f);
+
+        text = &quot;Территория: &quot;+menu.getRadius()+&quot; блоков&quot;;
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+3, this.topPos+97,0x431c10, false, 1f);
+
+        //Resources
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Еда&quot;, this.leftPos+50, this.topPos+135,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(menu.getFood()), this.leftPos+59-this.font.width(GuiAPI.normalizeText(menu.getFood())), this.topPos+140,0x431c10, false, 0.5f);
+
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Дерево&quot;, this.leftPos+76, this.topPos+135,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(menu.getWood()), this.leftPos+90-this.font.width(GuiAPI.normalizeText(menu.getWood())), this.topPos+140,0x431c10, false, 0.5f);
+
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Камень&quot;, this.leftPos+107, this.topPos+135,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(menu.getStone()), this.leftPos+121-this.font.width(GuiAPI.normalizeText(menu.getStone())), this.topPos+140,0x431c10, false, 0.5f);
+
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Кожа&quot;, this.leftPos+139, this.topPos+135,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(menu.getLeather()), this.leftPos+150-this.font.width(GuiAPI.normalizeText(menu.getLeather())), this.topPos+140,0x431c10, false, 0.5f);
+
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Редкое&quot;, this.leftPos+165, this.topPos+135,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(menu.getRare()), this.leftPos+178-this.font.width(GuiAPI.normalizeText(menu.getRare())), this.topPos+140,0x431c10, false, 0.5f);
     }
 
     @Override
@@ -617,6 +692,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.api.GuiAPI;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.RelationStage;
 import ru.kiero.nomad.networking.NomadNetworking;
@@ -699,27 +775,27 @@ public class TotemMainScreen extends Screen {
 
 
         String text = &quot;Племя &quot; + lable;
-        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+19, this.topPos+18,0xf5f0e8, false, 0.7f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+19, this.topPos+18,0xf5f0e8, false, 0.7f);
 
         text = &quot;Уровень лагеря: &quot; + String.valueOf(levelOf);
-        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+32, this.topPos+32, 0x35120a, false, 0.4f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+32, this.topPos+32, 0x35120a, false, 0.4f);
 
         text = &quot;Отношение к вам: &quot; + String.valueOf(friendship);
-        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+45, 0x35120a, false, 0.8f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+45, 0x35120a, false, 0.8f);
 
         //Friendship progressbar
         float barWidthTemp = (float) (friendship + 100) /200;
         int barWidth = Math.round(84*barWidthTemp);
         pGuiGraphics.blit(BG, leftPos+22, topPos+52, 0, imageHeight+1, barWidth, 8);
-        drawSmallString(pGuiGraphics, this.font, &quot;-100&quot;, this.leftPos+15, this.topPos+62, 0x431c10, false, 0.5f);
-        drawSmallString(pGuiGraphics, this.font, &quot;100&quot;, this.leftPos+100, this.topPos+62, 0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;-100&quot;, this.leftPos+15, this.topPos+62, 0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;100&quot;, this.leftPos+100, this.topPos+62, 0x431c10, false, 0.5f);
 
         text = RelationStage.of(friendship).toString();
-        drawSmallString(pGuiGraphics, this.font, RelationStage.of(friendship).toString(), this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+62, 0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, RelationStage.of(friendship).toString(), this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+62, 0x431c10, false, 0.5f);
 
         //Level
         text = &quot;Уровень: &quot; + String.valueOf(levelOf);
-        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+72,0x431c10, false, 0.7f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+72,0x431c10, false, 0.7f);
 
         //Exp Progressbar
         barWidthTemp = (float) exp/CampData.expForLevel.get(levelOf-1);
@@ -728,48 +804,31 @@ public class TotemMainScreen extends Screen {
 
         //Exp
         text = String.valueOf(exp) + &quot;/&quot; + String.valueOf(CampData.expForLevel.get(levelOf-1));
-        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+85,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+10, this.topPos+85,0x431c10, false, 0.5f);
 
         //TODO: Citizen count
 
         text = &quot;Территория: &quot;+radius+&quot; блоков&quot;;
-        drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+38, this.topPos+114,0x431c10, false, 0.65f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+38, this.topPos+114,0x431c10, false, 0.65f);
 
         //Resources
-        drawSmallString(pGuiGraphics, this.font, &quot;Еда&quot;, this.leftPos+24, this.topPos+140,0x431c10, false, 0.5f);
-        drawSmallString(pGuiGraphics, this.font, normalizeText(food), this.leftPos+33-this.font.width(normalizeText(food)), this.topPos+145,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Еда&quot;, this.leftPos+24, this.topPos+140,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(food), this.leftPos+33-this.font.width(GuiAPI.normalizeText(food)), this.topPos+145,0x431c10, false, 0.5f);
 
-        drawSmallString(pGuiGraphics, this.font, &quot;Дерево&quot;, this.leftPos+40, this.topPos+140,0x431c10, false, 0.5f);
-        drawSmallString(pGuiGraphics, this.font, normalizeText(wood), this.leftPos+54-this.font.width(normalizeText(wood)), this.topPos+145,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Дерево&quot;, this.leftPos+40, this.topPos+140,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(wood), this.leftPos+54-this.font.width(GuiAPI.normalizeText(wood)), this.topPos+145,0x431c10, false, 0.5f);
 
-        drawSmallString(pGuiGraphics, this.font, &quot;Камень&quot;, this.leftPos+61, this.topPos+140,0x431c10, false, 0.5f);
-        drawSmallString(pGuiGraphics, this.font, normalizeText(stone), this.leftPos+74-this.font.width(normalizeText(stone)), this.topPos+145,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Камень&quot;, this.leftPos+61, this.topPos+140,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(stone), this.leftPos+74-this.font.width(GuiAPI.normalizeText(stone)), this.topPos+145,0x431c10, false, 0.5f);
 
-        drawSmallString(pGuiGraphics, this.font, &quot;Кожа&quot;, this.leftPos+83, this.topPos+140,0x431c10, false, 0.5f);
-        drawSmallString(pGuiGraphics, this.font, normalizeText(leather), this.leftPos+94-this.font.width(normalizeText(leather)), this.topPos+145,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Кожа&quot;, this.leftPos+83, this.topPos+140,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(leather), this.leftPos+94-this.font.width(GuiAPI.normalizeText(leather)), this.topPos+145,0x431c10, false, 0.5f);
 
-        drawSmallString(pGuiGraphics, this.font, &quot;Редкое&quot;, this.leftPos+100, this.topPos+140,0x431c10, false, 0.5f);
-        drawSmallString(pGuiGraphics, this.font, normalizeText(rare), this.leftPos+113-this.font.width(normalizeText(rare)), this.topPos+145,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, &quot;Редкое&quot;, this.leftPos+100, this.topPos+140,0x431c10, false, 0.5f);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, GuiAPI.normalizeText(rare), this.leftPos+113-this.font.width(GuiAPI.normalizeText(rare)), this.topPos+145,0x431c10, false, 0.5f);
 
         //Buttons
 
-    }
-
-    private void drawSmallString(GuiGraphics guiGraphics, Font font, String text, int x, int y, int color, boolean shadow, float scale){
-        guiGraphics.pose().pushPose();
-        guiGraphics.pose().scale(scale, scale, 1.0f);
-
-        guiGraphics.drawString(font, text, x/scale, y/scale, color, shadow);
-
-        guiGraphics.pose().popPose();
-    }
-
-    public String normalizeText(int value){
-        if (value &lt; 1000){
-            return String.valueOf(value);
-        }else{
-            return String.valueOf(value/1000)+&quot;k&quot;;
-        }
     }
 
     private void render(GuiGraphics graphics, Button button, int mouseX, int mouseY, float partialTick){
@@ -1955,11 +2014,14 @@ public class NomadMenuTypes {
 <pre><code class="language-java">
 package ru.kiero.nomad.menu;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.SlotItemHandler;
@@ -1967,25 +2029,39 @@ import ru.kiero.nomad.blocks.TotemBlockEntity;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.init.NomadMenuTypes;
 
-public class PresentMenu extends AbstractContainerMenu {
+import java.util.UUID;
+
+public class PresentMenu extends AbstractContainerMenu implements ContainerData {
 
     private final TotemBlockEntity be;
-    private CampData data;
+    private ServerPlayer serverPlayer;
+    private final UUID playerUUID;
+
+    private final ContainerData dataMenu;
+    private CampData campData;
 
     public PresentMenu(int windowId, Inventory inv, TotemBlockEntity be) {
         super(NomadMenuTypes.PRESENT_MENU.get(), windowId);
         this.be = be;
+        this.dataMenu = this;
+        this.playerUUID = inv.player.getUUID();
 
         ServerPlayer serverPlayer = (ServerPlayer) inv.player;
-        this.data = CampData.get(serverPlayer.serverLevel());
+        this.campData = CampData.get(serverPlayer.serverLevel());
+        this.serverPlayer = serverPlayer;
 
+        addDataSlots(dataMenu);
         addSlots(inv);
     }
 
     public PresentMenu(int windowId, Inventory inv, FriendlyByteBuf buf) {
         super(NomadMenuTypes.PRESENT_MENU.get(), windowId);
         this.be = (TotemBlockEntity) inv.player.level().getBlockEntity(buf.readBlockPos());
+        this.playerUUID = inv.player.getUUID();
 
+        this.dataMenu = new SimpleContainerData(9);
+
+        addDataSlots(dataMenu);
         addSlots(inv);
     }
 
@@ -2028,6 +2104,44 @@ public class PresentMenu extends AbstractContainerMenu {
                 this.addSlot(new Slot(inv, col + row * 9 + 9, 33 + col * 18, 178 + row * 18));
             }
         }
+    }
+
+    public int getFriendship()              {return dataMenu.get(0);}
+    public int getLevelOf()                 {return dataMenu.get(1);}
+    public int getExp()                     {return dataMenu.get(2);}
+    public int getRadius()                  {return dataMenu.get(3);}
+
+    public int getFood()                    {return dataMenu.get(4);}
+    public int getWood()                    {return dataMenu.get(5);}
+    public int getStone()                   {return dataMenu.get(6);}
+    public int getLeather()                 {return dataMenu.get(7);}
+    public int getRare()                    {return dataMenu.get(8);}
+
+    @Override
+    public int get(int pIndex) {
+        UUID camp = campData.getCampAt(be.getBlockPos());
+        return switch (pIndex){
+            case 0 -&gt; campData.getFriendship(camp, playerUUID);
+            case 1 -&gt; campData.getLevelOf(camp);
+            case 2 -&gt; campData.getExp(camp);
+            case 3 -&gt; campData.getRadius(camp);
+            case 4 -&gt; campData.getFood(camp);
+            case 5 -&gt; campData.getWood(camp);
+            case 6 -&gt; campData.getStone(camp);
+            case 7 -&gt; campData.getLeather(camp);
+            case 8 -&gt; campData.getRare(camp);
+            default -&gt; 0;
+        };
+    }
+
+    @Override
+    public void set(int pIndex, int pValue) {
+
+    }
+
+    @Override
+    public int getCount() {
+        return 9;
     }
 }
 
