@@ -13,5 +13,6 @@ public class NomadNetworking {
         CHANNEL.messageBuilder(MainScreenPacket.class, 1).encoder(MainScreenPacket::write).decoder(MainScreenPacket::new).consumerMainThread(MainScreenPacket::handle).add();
         CHANNEL.messageBuilder(PresentPacket.class, 2).encoder(PresentPacket::write).decoder(PresentPacket::new).consumerMainThread(PresentPacket::handle).add();;
         CHANNEL.messageBuilder(GiftPacket.class, 3).encoder(GiftPacket::write).decoder(GiftPacket::new).consumerMainThread(GiftPacket::handle).add();
+        CHANNEL.messageBuilder(ReturnPacket.class, 4).encoder(ReturnPacket::write).decoder(ReturnPacket::new).consumerMainThread(ReturnPacket::handle).add();
     }
 }

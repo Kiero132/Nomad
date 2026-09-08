@@ -602,6 +602,7 @@ import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.menu.PresentMenu;
 import ru.kiero.nomad.networking.GiftPacket;
 import ru.kiero.nomad.networking.NomadNetworking;
+import ru.kiero.nomad.networking.ReturnPacket;
 
 public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 
@@ -625,6 +626,10 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 
                     }
                 }));
+
+        this.addRenderableWidget(Button.builder(Component.literal(&quot;&quot;), this::exit)
+                .bounds(leftPos+196, topPos+14, 15, 15)
+                .build());
     }
 
     @Override
@@ -691,6 +696,10 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 
     private void giveGift(Button button){
         NomadNetworking.CHANNEL.sendToServer(new GiftPacket());
+    }
+
+    private void exit(Button button){
+        NomadNetworking.CHANNEL.sendToServer(new ReturnPacket(menu.getBlockEntity().getBlockPos()));
     }
 }
 
@@ -800,7 +809,7 @@ public class TotemMainScreen extends Screen {
         text = &quot;Уровень лагеря: &quot; + String.valueOf(levelOf);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+32, this.topPos+32, 0x35120a, false, 0.4f);
 
-        text = &quot;Отношение к вам: &quot; + String.valueOf(friendship);
+        text = &quot;Отношение к вам: &quot; + String.valueOf(friendship/10);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+45, 0x35120a, false, 0.8f);
 
         //Friendship progressbar
@@ -2425,6 +2434,7 @@ public class NomadNetworking {
         CHANNEL.messageBuilder(MainScreenPacket.class, 1).encoder(MainScreenPacket::write).decoder(MainScreenPacket::new).consumerMainThread(MainScreenPacket::handle).add();
         CHANNEL.messageBuilder(PresentPacket.class, 2).encoder(PresentPacket::write).decoder(PresentPacket::new).consumerMainThread(PresentPacket::handle).add();;
         CHANNEL.messageBuilder(GiftPacket.class, 3).encoder(GiftPacket::write).decoder(GiftPacket::new).consumerMainThread(GiftPacket::handle).add();
+        CHANNEL.messageBuilder(ReturnPacket.class, 4).encoder(ReturnPacket::write).decoder(ReturnPacket::new).consumerMainThread(ReturnPacket::handle).add();
     }
 }
 
@@ -2471,6 +2481,69 @@ public class PresentPacket {
                 NetworkHooks.openScreen(serverPlayer, be, buf -&gt; buf.writeBlockPos(blockPos));
             }
         }
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/networking/ReturnPacket.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.networking;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.PacketDistributor;
+import ru.kiero.nomad.client.NomadClient;
+import ru.kiero.nomad.data.CampData;
+import ru.kiero.nomad.entity.Profession;
+import ru.kiero.nomad.menu.PresentMenu;
+
+import java.util.UUID;
+import java.util.function.Supplier;
+
+public class ReturnPacket {
+
+    private final BlockPos blockPos;
+
+    public ReturnPacket(BlockPos blockPos) {
+        this.blockPos = blockPos;
+    }
+
+    public ReturnPacket(FriendlyByteBuf buf){
+        this.blockPos = buf.readBlockPos();
+    }
+
+    public void write(FriendlyByteBuf buf){
+        buf.writeBlockPos(blockPos);
+    }
+
+    public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
+        NetworkEvent.Context ctx = sup.get();
+
+        ServerPlayer serverPlayer = ctx.getSender();
+        if (serverPlayer != null){
+            Level level = serverPlayer.level();
+            if (level.isClientSide()) return;
+            CampData data = CampData.get((ServerLevel) level);
+            UUID camp = data.getCampAt(blockPos);
+
+            if (serverPlayer.containerMenu instanceof PresentMenu menu){
+                serverPlayer.closeContainer();
+                NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -&gt; serverPlayer), new MainScreenPacket(
+                        data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getFriendship(camp, serverPlayer.getUUID()), data.getRadius(camp),
+                        data.getFood(camp), data.getWood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.hasProfession(camp, Profession.SHAMAN), blockPos));
+                return;
+            }
+        }
+
+
     }
 }
 

@@ -97,7 +97,7 @@ public class TotemMainScreen extends Screen {
         text = "Уровень лагеря: " + String.valueOf(levelOf);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+32, this.topPos+32, 0x35120a, false, 0.4f);
 
-        text = "Отношение к вам: " + String.valueOf(friendship);
+        text = "Отношение к вам: " + String.valueOf(friendship/10);
         GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+45, 0x35120a, false, 0.8f);
 
         //Friendship progressbar

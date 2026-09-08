@@ -15,6 +15,7 @@ import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.menu.PresentMenu;
 import ru.kiero.nomad.networking.GiftPacket;
 import ru.kiero.nomad.networking.NomadNetworking;
+import ru.kiero.nomad.networking.ReturnPacket;
 
 public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
 
@@ -38,6 +39,10 @@ public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
 
                     }
                 }));
+
+        this.addRenderableWidget(Button.builder(Component.literal(""), this::exit)
+                .bounds(leftPos+196, topPos+14, 15, 15)
+                .build());
     }
 
     @Override
@@ -104,5 +109,9 @@ public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
 
     private void giveGift(Button button){
         NomadNetworking.CHANNEL.sendToServer(new GiftPacket());
+    }
+
+    private void exit(Button button){
+        NomadNetworking.CHANNEL.sendToServer(new ReturnPacket(menu.getBlockEntity().getBlockPos()));
     }
 }
