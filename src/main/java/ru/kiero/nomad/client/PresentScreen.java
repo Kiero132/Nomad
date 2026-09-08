@@ -3,6 +3,7 @@ package ru.kiero.nomad.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -22,6 +23,19 @@ public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
         super(pMenu, inv, pTitle);
         this.imageWidth = 256;
         this.imageHeight = 256;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        this.addRenderableWidget(Button.builder(Component.literal(""), this::giveGift)
+                .bounds(this.leftPos+123, this.topPos+147, 73, 18)
+                .build(button -> new Button(button){
+                    @Override
+                    protected void renderWidget(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+
+                    }
+                }));
     }
 
     @Override
@@ -83,6 +97,10 @@ public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
 
     @Override
     protected void renderLabels(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY) {
+
+    }
+
+    private void giveGift(Button button){
 
     }
 }
