@@ -4,10 +4,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.saveddata.SavedData;
 import ru.kiero.nomad.Nomad;
-import ru.kiero.nomad.entity.NomadEntity;
 import ru.kiero.nomad.entity.Profession;
 
 import java.util.*;

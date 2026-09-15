@@ -1,7 +1,6 @@
 package ru.kiero.nomad;
 
 import net.minecraft.client.gui.screens.MenuScreens;
-import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -10,7 +9,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import ru.kiero.nomad.client.NomadRenderer;
-import ru.kiero.nomad.client.PresentScreen;
+import ru.kiero.nomad.client.screens.PresentScreen;
 import ru.kiero.nomad.client.model.NomadModel;
 import ru.kiero.nomad.entity.NomadEntity;
 import ru.kiero.nomad.init.*;

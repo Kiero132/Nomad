@@ -253,7 +253,6 @@ rootProject.name = &#x27;nomad&#x27;
 package ru.kiero.nomad;
 
 import net.minecraft.client.gui.screens.MenuScreens;
-import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -262,7 +261,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import ru.kiero.nomad.client.NomadRenderer;
-import ru.kiero.nomad.client.PresentScreen;
+import ru.kiero.nomad.client.screens.PresentScreen;
 import ru.kiero.nomad.client.model.NomadModel;
 import ru.kiero.nomad.entity.NomadEntity;
 import ru.kiero.nomad.init.*;
@@ -582,20 +581,104 @@ public class NomadRenderer extends MobRenderer&lt;NomadEntity, NomadModel&gt; {
 
 ---
 
-## src/main/java/ru/kiero/nomad/client/PresentScreen.java
+## src/main/java/ru/kiero/nomad/client/model/NomadModel.java
 
 <pre><code class="language-java">
-package ru.kiero.nomad.client;
+package ru.kiero.nomad.client.model;
+
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.geom.builders.MeshDefinition;
+import net.minecraft.resources.ResourceLocation;
+import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.entity.NomadEntity;
+
+public class NomadModel extends HumanoidModel&lt;NomadEntity&gt; {
+
+    public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation(Nomad.MOD_ID, &quot;nomad&quot;), &quot;main&quot;);
+
+    public NomadModel(ModelPart pRoot) {
+        super(pRoot);
+    }
+
+    public static LayerDefinition createBodyLayer(){
+        MeshDefinition meshDefenition = HumanoidModel.createMesh(CubeDeformation.NONE, 0f);
+        return LayerDefinition.create(meshDefenition, 128, 64);
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/client/screens/LevelUpScreen.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.client.screens;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import ru.kiero.nomad.Nomad;
+
+public class LevelUpScreen extends Screen {
+
+    private final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/levelUpMenu.png&quot;);
+
+    private final int imageWidth;
+    private final int imageHeight;
+    private int leftPos;
+    private int topPos;
+
+    public LevelUpScreen(Component pTitle) {
+        super(pTitle);
+
+        imageWidth = 256;
+        imageHeight = 256;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        this.leftPos = width/2-imageWidth/2;
+        this.topPos = (this.height-imageHeight)/2;
+    }
+
+    @Override
+    public void render(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+        renderBackground(pGuiGraphics);
+        super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics pGuiGraphics) {
+        super.renderBackground(pGuiGraphics);
+        RenderSystem.setShaderTexture(0, BG);
+        pGuiGraphics.blit(BG, leftPos, topPos, 0, 0, this.imageWidth, this.imageHeight);
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/client/screens/PresentScreen.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.client.screens;
+
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.api.GuiAPI;
 import ru.kiero.nomad.data.CampData;
@@ -629,7 +712,12 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 
         this.addRenderableWidget(Button.builder(Component.literal(&quot;&quot;), this::exit)
                 .bounds(leftPos+196, topPos+14, 15, 15)
-                .build());
+                .build(button -&gt; new Button(button) {
+                    @Override
+                    protected void renderWidget(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+
+                    }
+                }));
     }
 
     @Override
@@ -707,13 +795,12 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 
 ---
 
-## src/main/java/ru/kiero/nomad/client/TotemMainScreen.java
+## src/main/java/ru/kiero/nomad/client/screens/TotemMainScreen.java
 
 <pre><code class="language-java">
-package ru.kiero.nomad.client;
+package ru.kiero.nomad.client.screens;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -724,6 +811,7 @@ import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.api.GuiAPI;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.RelationStage;
+import ru.kiero.nomad.networking.LevelUpPacket;
 import ru.kiero.nomad.networking.NomadNetworking;
 import ru.kiero.nomad.networking.PresentPacket;
 
@@ -788,6 +876,15 @@ public class TotemMainScreen extends Screen {
                             }
                         })
         );
+        this.addRenderableWidget(
+                Button.builder(Component.literal(&quot;&quot;), this::onLevelUpClick)
+                        .bounds(this.leftPos+37, this.topPos+168, 60, 12)
+                        .build(builder -&gt; new Button(builder) {
+                            @Override
+                            protected void renderWidget(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+
+                            }
+                        }));
     }
 
     @Override
@@ -867,38 +964,9 @@ public class TotemMainScreen extends Screen {
     private void onGiftClick(Button button){
         NomadNetworking.CHANNEL.sendToServer(new PresentPacket(blockPos));
     }
-}
 
-</code></pre>
-
----
-
-## src/main/java/ru/kiero/nomad/client/model/NomadModel.java
-
-<pre><code class="language-java">
-package ru.kiero.nomad.client.model;
-
-import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.model.geom.ModelLayerLocation;
-import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.model.geom.builders.CubeDeformation;
-import net.minecraft.client.model.geom.builders.LayerDefinition;
-import net.minecraft.client.model.geom.builders.MeshDefinition;
-import net.minecraft.resources.ResourceLocation;
-import ru.kiero.nomad.Nomad;
-import ru.kiero.nomad.entity.NomadEntity;
-
-public class NomadModel extends HumanoidModel&lt;NomadEntity&gt; {
-
-    public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation(Nomad.MOD_ID, &quot;nomad&quot;), &quot;main&quot;);
-
-    public NomadModel(ModelPart pRoot) {
-        super(pRoot);
-    }
-
-    public static LayerDefinition createBodyLayer(){
-        MeshDefinition meshDefenition = HumanoidModel.createMesh(CubeDeformation.NONE, 0f);
-        return LayerDefinition.create(meshDefenition, 128, 64);
+    private void onLevelUpClick(Button button) {
+        NomadNetworking.CHANNEL.sendToServer(new LevelUpPacket());
     }
 }
 
@@ -915,10 +983,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.saveddata.SavedData;
 import ru.kiero.nomad.Nomad;
-import ru.kiero.nomad.entity.NomadEntity;
 import ru.kiero.nomad.entity.Profession;
 
 import java.util.*;
@@ -1438,7 +1504,7 @@ public class NomadEntity extends PathfinderMob {
         }else{
             this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         }
-        data.changeProfession(this.getCampUUID(), this.getUUID(), profession);
+        if (data != null) data.changeProfession(this.getCampUUID(), this.getUUID(), profession);
     }
     public void setCampUUID(UUID uuid){
         this.entityData.set(CAMP_UUID, uuid.toString());
@@ -2322,6 +2388,43 @@ public class GiftPacket {
 
 ---
 
+## src/main/java/ru/kiero/nomad/networking/LevelUpPacket.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.networking;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraftforge.network.NetworkEvent;
+import ru.kiero.nomad.client.NomadClient;
+import ru.kiero.nomad.client.screens.LevelUpScreen;
+
+import java.util.function.Supplier;
+
+public class LevelUpPacket {
+
+    public LevelUpPacket(){
+
+    }
+    public LevelUpPacket(FriendlyByteBuf buf) {
+    }
+
+    public void write(FriendlyByteBuf buf){
+
+    }
+
+    public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
+        NetworkEvent.Context ctx = sup.get();
+
+        NomadClient.openScreen(sup, new LevelUpScreen(Component.literal(&quot;&quot;)));
+        ctx.setPacketHandled(true);
+    }
+}
+
+</code></pre>
+
+---
+
 ## src/main/java/ru/kiero/nomad/networking/MainScreenPacket.java
 
 <pre><code class="language-java">
@@ -2332,7 +2435,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.network.NetworkEvent;
 import ru.kiero.nomad.client.NomadClient;
-import ru.kiero.nomad.client.TotemMainScreen;
+import ru.kiero.nomad.client.screens.TotemMainScreen;
 
 import java.util.function.Supplier;
 
@@ -2435,6 +2538,7 @@ public class NomadNetworking {
         CHANNEL.messageBuilder(PresentPacket.class, 2).encoder(PresentPacket::write).decoder(PresentPacket::new).consumerMainThread(PresentPacket::handle).add();;
         CHANNEL.messageBuilder(GiftPacket.class, 3).encoder(GiftPacket::write).decoder(GiftPacket::new).consumerMainThread(GiftPacket::handle).add();
         CHANNEL.messageBuilder(ReturnPacket.class, 4).encoder(ReturnPacket::write).decoder(ReturnPacket::new).consumerMainThread(ReturnPacket::handle).add();
+        CHANNEL.messageBuilder(LevelUpPacket.class, 5).encoder(LevelUpPacket::write).decoder(LevelUpPacket::new).consumerMainThread(LevelUpPacket::handle).add();
     }
 }
 

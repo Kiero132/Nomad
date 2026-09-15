@@ -83,7 +83,7 @@ public class NomadEntity extends PathfinderMob {
         }else{
             this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
         }
-        data.changeProfession(this.getCampUUID(), this.getUUID(), profession);
+        if (data != null) data.changeProfession(this.getCampUUID(), this.getUUID(), profession);
     }
     public void setCampUUID(UUID uuid){
         this.entityData.set(CAMP_UUID, uuid.toString());

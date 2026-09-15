@@ -5,7 +5,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.network.NetworkEvent;
 import ru.kiero.nomad.client.NomadClient;
-import ru.kiero.nomad.client.TotemMainScreen;
+import ru.kiero.nomad.client.screens.TotemMainScreen;
 
 import java.util.function.Supplier;
 
