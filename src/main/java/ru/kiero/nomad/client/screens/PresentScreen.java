@@ -78,8 +78,8 @@ public class PresentScreen extends AbstractContainerScreen<PresentMenu> {
 
         //Exp Progressbar
         barWidthTemp = (float) menu.getExp()/ CampData.expForLevel.get(menu.getLevelOf()-1);
-        barWidth = Math.round(40*barWidthTemp);
-        pGuiGraphics.blit(BARS, leftPos+22, topPos+52, 0, topPos+242, barWidth, 8);
+        barWidth = Math.round(121*barWidthTemp);
+        pGuiGraphics.blit(BARS, leftPos+53, topPos+72, 0, topPos+240, barWidth, 11);
 
         //Exp
         text = String.valueOf(menu.getExp()) + "/" + String.valueOf(CampData.expForLevel.get(menu.getLevelOf()-1));

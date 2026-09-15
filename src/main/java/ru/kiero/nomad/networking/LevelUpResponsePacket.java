@@ -1,5 +1,6 @@
 package ru.kiero.nomad.networking;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.network.NetworkEvent;
@@ -14,6 +15,7 @@ public class LevelUpResponsePacket {
     private final int level;
     private final int exp;
     private final int radius;
+    private final BlockPos blockPos;
 
     private final int wood;
     private final int food;
@@ -21,11 +23,12 @@ public class LevelUpResponsePacket {
     private final int leather;
     private final int rare;
 
-    public LevelUpResponsePacket(int wood, int food, int stone, int leather, int rare, String title, int level, int exp, int radius) {
+    public LevelUpResponsePacket(int wood, int food, int stone, int leather, int rare, String title, int level, int exp, int radius, BlockPos blockPos) {
         this.title = title;
         this.level = level;
         this.exp = exp;
         this.radius = radius;
+        this.blockPos = blockPos;
 
         this.food = food;
         this.wood = wood;
@@ -39,6 +42,7 @@ public class LevelUpResponsePacket {
         this.level = buf.readInt();
         this.exp = buf.readInt();
         this.radius = buf.readInt();
+        this.blockPos = buf.readBlockPos();
 
         this.food = buf.readInt();
         this.wood = buf.readInt();
@@ -52,6 +56,7 @@ public class LevelUpResponsePacket {
         buf.writeInt(level);
         buf.writeInt(exp);
         buf.writeInt(radius);
+        buf.writeBlockPos(blockPos);
 
         buf.writeInt(food);
         buf.writeInt(wood);
@@ -63,7 +68,7 @@ public class LevelUpResponsePacket {
     public void handle(Supplier<NetworkEvent.Context> sup){
         NetworkEvent.Context ctx = sup.get();
 
-        NomadClient.openScreen(sup, new LevelUpScreen(Component.literal(""), wood, food, stone, leather, rare, title, level, exp, radius));
+        NomadClient.openScreen(sup, new LevelUpScreen(Component.literal(""), wood, food, stone, leather, rare, title, level, exp, radius, blockPos));
         ctx.setPacketHandled(true);
     }
 }

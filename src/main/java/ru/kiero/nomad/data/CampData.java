@@ -302,8 +302,7 @@ public class CampData extends SavedData {
         int res;
         if(getLevelOf(uuid) != maxLevel) {
             if (expNow + value >= expForLevel.get(getLevelOf(uuid) - 1)) {
-                res = expNow + value - expForLevel.get(getLevelOf(uuid) - 1);
-                levelUp(uuid);
+                res = expForLevel.get(getLevelOf(uuid) - 1);
             } else {
                 res = expNow + value;
             }
@@ -320,12 +319,15 @@ public class CampData extends SavedData {
     }
     public void levelUp(UUID uuid){
         int newLevel = getLevelOf(uuid) + 1;
+        int newExp = CAMPS.get(uuid).getInt("exp")-expForLevel.get(getLevelOf(uuid)-1);
         //TODO Citizen count
 
         CAMPS.get(uuid).remove("level");
         CAMPS.get(uuid).putInt("level", newLevel);
         CAMPS.get(uuid).remove("radius");
         CAMPS.get(uuid).putInt("radius", getRadiusOf(newLevel));
+        CAMPS.get(uuid).remove("exp");
+        CAMPS.get(uuid).putInt("exp", newExp);
         setDirty();
     }
     public void addResources(UUID uuid, ResourceCategory category, int value){
@@ -342,6 +344,7 @@ public class CampData extends SavedData {
             }
         };
 
+        addExp(uuid, value);
         int countCopy = resources.getInt(resourcesType);
         resources.remove(resourcesType);
         resources.putInt(resourcesType, countCopy+value);

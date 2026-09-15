@@ -34,6 +34,6 @@ public class LevelUpRequestPacket {
         if (camp == null) return;
 
         NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                new LevelUpResponsePacket(data.getWood(camp), data.getFood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getRadius(camp)));
+                new LevelUpResponsePacket(data.getWood(camp), data.getFood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getRadius(camp), blockPos));
     }
 }

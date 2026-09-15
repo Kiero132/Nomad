@@ -16,5 +16,6 @@ public class NomadNetworking {
         CHANNEL.messageBuilder(ReturnPacket.class, 4).encoder(ReturnPacket::write).decoder(ReturnPacket::new).consumerMainThread(ReturnPacket::handle).add();
         CHANNEL.messageBuilder(LevelUpRequestPacket.class, 5).encoder(LevelUpRequestPacket::write).decoder(LevelUpRequestPacket::new).consumerMainThread(LevelUpRequestPacket::handle).add();
         CHANNEL.messageBuilder(LevelUpResponsePacket.class, 6).encoder(LevelUpResponsePacket::write).decoder(LevelUpResponsePacket::new).consumerMainThread(LevelUpResponsePacket::handle).add();
+        CHANNEL.messageBuilder(LevelUpPacket.class, 7).encoder(LevelUpPacket::write).decoder(LevelUpPacket::new).consumerMainThread(LevelUpPacket::handle).add();
     }
 }
