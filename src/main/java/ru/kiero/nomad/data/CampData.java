@@ -17,6 +17,14 @@ public class CampData extends SavedData {
 
     public static final String DATA_NAME = Nomad.MOD_ID + "_camp";
     public static final List<Integer> expForLevel = List.of(100, 200, 500, 1000, 2000);
+
+    //Resources for new level
+    public static final List<Integer> woodForLevel = List.of(100, 200, 500, 1000, 2000);
+    public static final List<Integer> foodForLevel = List.of(100, 200, 500, 1000, 2000);
+    public static final List<Integer> stoneForLevel = List.of(100, 200, 500, 1000, 2000);
+    public static final List<Integer> leatherForLevel = List.of(5, 10, 20, 40, 60);
+    public static final List<Integer> rareForLevel = List.of(5, 10, 20, 40, 60);
+
     private ServerLevel serverLevel;
 
     @Override
@@ -353,7 +361,7 @@ public class CampData extends SavedData {
         setDirty();
     }
 
-    public int getRadiusOf(int level){
+    public static int getRadiusOf(int level){
         return switch (level){
             case 1 -> 15;
             case 2 -> 25;

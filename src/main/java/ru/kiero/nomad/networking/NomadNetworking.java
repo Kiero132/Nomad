@@ -6,7 +6,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import ru.kiero.nomad.Nomad;
 
 public class NomadNetworking {
-    public static final String PROTOCOL_VERSION = "1";
+    public static final String PROTOCOL_VERSION = "2";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(new ResourceLocation(Nomad.MOD_ID, "main"), () -> PROTOCOL_VERSION, PROTOCOL_VERSION::equals, PROTOCOL_VERSION::equals);
 
     public static void reg(){
@@ -14,6 +14,7 @@ public class NomadNetworking {
         CHANNEL.messageBuilder(PresentPacket.class, 2).encoder(PresentPacket::write).decoder(PresentPacket::new).consumerMainThread(PresentPacket::handle).add();;
         CHANNEL.messageBuilder(GiftPacket.class, 3).encoder(GiftPacket::write).decoder(GiftPacket::new).consumerMainThread(GiftPacket::handle).add();
         CHANNEL.messageBuilder(ReturnPacket.class, 4).encoder(ReturnPacket::write).decoder(ReturnPacket::new).consumerMainThread(ReturnPacket::handle).add();
-        CHANNEL.messageBuilder(LevelUpPacket.class, 5).encoder(LevelUpPacket::write).decoder(LevelUpPacket::new).consumerMainThread(LevelUpPacket::handle).add();
+        CHANNEL.messageBuilder(LevelUpRequestPacket.class, 5).encoder(LevelUpRequestPacket::write).decoder(LevelUpRequestPacket::new).consumerMainThread(LevelUpRequestPacket::handle).add();
+        CHANNEL.messageBuilder(LevelUpResponsePacket.class, 6).encoder(LevelUpResponsePacket::write).decoder(LevelUpResponsePacket::new).consumerMainThread(LevelUpResponsePacket::handle).add();
     }
 }

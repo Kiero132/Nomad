@@ -625,21 +625,45 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.kiero.nomad.Nomad;
+import ru.kiero.nomad.api.GuiAPI;
+import ru.kiero.nomad.data.CampData;
 
 public class LevelUpScreen extends Screen {
 
-    private final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/levelUpMenu.png&quot;);
+    public static final ResourceLocation BG = new ResourceLocation(Nomad.MOD_ID, &quot;textures/gui/levelupscreen.png&quot;);
 
     private final int imageWidth;
     private final int imageHeight;
     private int leftPos;
     private int topPos;
 
-    public LevelUpScreen(Component pTitle) {
+    private final String title;
+    private final int level;
+    private final int exp;
+    private final int radius;
+
+    private final int wood;
+    private final int food;
+    private final int stone;
+    private final int leather;
+    private final int rare;
+
+    public LevelUpScreen(Component pTitle, int wood, int food, int stone, int leather, int rare, String title, int level, int exp, int radius) {
         super(pTitle);
 
-        imageWidth = 256;
-        imageHeight = 256;
+        imageWidth = 176;
+        imageHeight = 176;
+
+        this.title = title;
+        this.level = level;
+        this.exp = exp;
+        this.radius = radius;
+
+        this.food = food;
+        this.wood = wood;
+        this.stone = stone;
+        this.leather = leather;
+        this.rare = rare;
     }
 
     @Override
@@ -653,11 +677,46 @@ public class LevelUpScreen extends Screen {
     public void render(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
         renderBackground(pGuiGraphics);
         super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
+
+        //Title
+        String text = &quot;Племя &quot; + title;
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+19, this.topPos+11,0xf5f0e8, false, 0.7f);
+
+        //Level
+        text = &quot;Уровень &quot; + level;
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+13, this.topPos+29,0x372113, false, 0.55f);
+
+        //Exp
+        text = exp + &quot;/&quot; + CampData.expForLevel.get(level-1);
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+68, this.topPos+40,0x261b12, false, 0.6f);
+
+        //Resources
+        text = GuiAPI.normalizeText(wood) + &quot;/&quot; + String.valueOf(CampData.woodForLevel.get(level-1));
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2-49, this.topPos+83,0x431c10, false, 0.5f);
+
+        text = GuiAPI.normalizeText(food) + &quot;/&quot; + String.valueOf(CampData.foodForLevel.get(level-1));
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2-20, this.topPos+83,0x431c10, false, 0.5f);
+
+        text = GuiAPI.normalizeText(stone) + &quot;/&quot; + String.valueOf(CampData.stoneForLevel.get(level-1));
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+8, this.topPos+83,0x431c10, false, 0.5f);
+
+        text = GuiAPI.normalizeText(leather) + &quot;/&quot; + String.valueOf(CampData.leatherForLevel.get(level-1));
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+34, this.topPos+83,0x431c10, false, 0.5f);
+
+        text = GuiAPI.normalizeText(rare) + &quot;/&quot; + String.valueOf(CampData.rareForLevel.get(level-1));
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2+63, this.topPos+83,0x431c10, false, 0.5f);
+
+        //Radius
+        text = &quot;+&quot; + String.valueOf(CampData.getRadiusOf(level+1) - CampData.getRadiusOf(level)) + &quot; блоков&quot;;
+        GuiAPI.drawSmallString(pGuiGraphics, this.font, text, this.leftPos+(this.imageWidth-this.font.width(text))/2-10, this.topPos+109,0x431c10, false, 0.5f);
+
+        //TODO Nomads
+
     }
 
     @Override
     public void renderBackground(GuiGraphics pGuiGraphics) {
-        super.renderBackground(pGuiGraphics);
+        //super.renderBackground(pGuiGraphics);
         RenderSystem.setShaderTexture(0, BG);
         pGuiGraphics.blit(BG, leftPos, topPos, 0, 0, this.imageWidth, this.imageHeight);
     }
@@ -801,6 +860,7 @@ public class PresentScreen extends AbstractContainerScreen&lt;PresentMenu&gt; {
 package ru.kiero.nomad.client.screens;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -811,7 +871,7 @@ import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.api.GuiAPI;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.RelationStage;
-import ru.kiero.nomad.networking.LevelUpPacket;
+import ru.kiero.nomad.networking.LevelUpRequestPacket;
 import ru.kiero.nomad.networking.NomadNetworking;
 import ru.kiero.nomad.networking.PresentPacket;
 
@@ -966,7 +1026,7 @@ public class TotemMainScreen extends Screen {
     }
 
     private void onLevelUpClick(Button button) {
-        NomadNetworking.CHANNEL.sendToServer(new LevelUpPacket());
+        NomadNetworking.CHANNEL.sendToServer(new LevelUpRequestPacket(blockPos));
     }
 }
 
@@ -996,6 +1056,14 @@ public class CampData extends SavedData {
 
     public static final String DATA_NAME = Nomad.MOD_ID + &quot;_camp&quot;;
     public static final List&lt;Integer&gt; expForLevel = List.of(100, 200, 500, 1000, 2000);
+
+    //Resources for new level
+    public static final List&lt;Integer&gt; woodForLevel = List.of(100, 200, 500, 1000, 2000);
+    public static final List&lt;Integer&gt; foodForLevel = List.of(100, 200, 500, 1000, 2000);
+    public static final List&lt;Integer&gt; stoneForLevel = List.of(100, 200, 500, 1000, 2000);
+    public static final List&lt;Integer&gt; leatherForLevel = List.of(5, 10, 20, 40, 60);
+    public static final List&lt;Integer&gt; rareForLevel = List.of(5, 10, 20, 40, 60);
+
     private ServerLevel serverLevel;
 
     @Override
@@ -1332,7 +1400,7 @@ public class CampData extends SavedData {
         setDirty();
     }
 
-    public int getRadiusOf(int level){
+    public static int getRadiusOf(int level){
         return switch (level){
             case 1 -&gt; 15;
             case 2 -&gt; 25;
@@ -2388,7 +2456,54 @@ public class GiftPacket {
 
 ---
 
-## src/main/java/ru/kiero/nomad/networking/LevelUpPacket.java
+## src/main/java/ru/kiero/nomad/networking/LevelUpRequestPacket.java
+
+<pre><code class="language-java">
+package ru.kiero.nomad.networking;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.PacketDistributor;
+import ru.kiero.nomad.data.CampData;
+
+import java.util.UUID;
+import java.util.function.Supplier;
+
+public class LevelUpRequestPacket {
+
+    private final BlockPos blockPos;
+
+    public LevelUpRequestPacket(BlockPos blockPos){
+        this.blockPos = blockPos;
+    }
+    public LevelUpRequestPacket(FriendlyByteBuf buf) {
+        this.blockPos = buf.readBlockPos();
+    }
+
+    public void write(FriendlyByteBuf buf){
+        buf.writeBlockPos(blockPos);
+    }
+
+    public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
+        NetworkEvent.Context ctx = sup.get();
+        ServerPlayer player = ctx.getSender();
+
+        CampData data = CampData.get(player.serverLevel());
+        UUID camp = data.getCampAt(blockPos);
+        if (camp == null) return;
+
+        NomadNetworking.CHANNEL.send(PacketDistributor.PLAYER.with(() -&gt; player),
+                new LevelUpResponsePacket(data.getWood(camp), data.getFood(camp), data.getStone(camp), data.getLeather(camp), data.getRare(camp), data.getName(camp), data.getLevelOf(camp), data.getExp(camp), data.getRadius(camp)));
+    }
+}
+
+</code></pre>
+
+---
+
+## src/main/java/ru/kiero/nomad/networking/LevelUpResponsePacket.java
 
 <pre><code class="language-java">
 package ru.kiero.nomad.networking;
@@ -2401,22 +2516,62 @@ import ru.kiero.nomad.client.screens.LevelUpScreen;
 
 import java.util.function.Supplier;
 
-public class LevelUpPacket {
+public class LevelUpResponsePacket {
 
-    public LevelUpPacket(){
+    private final String title;
+    private final int level;
+    private final int exp;
+    private final int radius;
 
+    private final int wood;
+    private final int food;
+    private final int stone;
+    private final int leather;
+    private final int rare;
+
+    public LevelUpResponsePacket(int wood, int food, int stone, int leather, int rare, String title, int level, int exp, int radius) {
+        this.title = title;
+        this.level = level;
+        this.exp = exp;
+        this.radius = radius;
+
+        this.food = food;
+        this.wood = wood;
+        this.stone = stone;
+        this.leather = leather;
+        this.rare = rare;
     }
-    public LevelUpPacket(FriendlyByteBuf buf) {
+
+    public LevelUpResponsePacket(FriendlyByteBuf buf) {
+        this.title = buf.readUtf();
+        this.level = buf.readInt();
+        this.exp = buf.readInt();
+        this.radius = buf.readInt();
+
+        this.food = buf.readInt();
+        this.wood = buf.readInt();
+        this.stone = buf.readInt();
+        this.leather = buf.readInt();
+        this.rare = buf.readInt();
     }
 
     public void write(FriendlyByteBuf buf){
+        buf.writeUtf(title);
+        buf.writeInt(level);
+        buf.writeInt(exp);
+        buf.writeInt(radius);
 
+        buf.writeInt(food);
+        buf.writeInt(wood);
+        buf.writeInt(stone);
+        buf.writeInt(leather);
+        buf.writeInt(rare);
     }
 
     public void handle(Supplier&lt;NetworkEvent.Context&gt; sup){
         NetworkEvent.Context ctx = sup.get();
 
-        NomadClient.openScreen(sup, new LevelUpScreen(Component.literal(&quot;&quot;)));
+        NomadClient.openScreen(sup, new LevelUpScreen(Component.literal(&quot;&quot;), wood, food, stone, leather, rare, title, level, exp, radius));
         ctx.setPacketHandled(true);
     }
 }
@@ -2530,7 +2685,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import ru.kiero.nomad.Nomad;
 
 public class NomadNetworking {
-    public static final String PROTOCOL_VERSION = &quot;1&quot;;
+    public static final String PROTOCOL_VERSION = &quot;2&quot;;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(new ResourceLocation(Nomad.MOD_ID, &quot;main&quot;), () -&gt; PROTOCOL_VERSION, PROTOCOL_VERSION::equals, PROTOCOL_VERSION::equals);
 
     public static void reg(){
@@ -2538,7 +2693,8 @@ public class NomadNetworking {
         CHANNEL.messageBuilder(PresentPacket.class, 2).encoder(PresentPacket::write).decoder(PresentPacket::new).consumerMainThread(PresentPacket::handle).add();;
         CHANNEL.messageBuilder(GiftPacket.class, 3).encoder(GiftPacket::write).decoder(GiftPacket::new).consumerMainThread(GiftPacket::handle).add();
         CHANNEL.messageBuilder(ReturnPacket.class, 4).encoder(ReturnPacket::write).decoder(ReturnPacket::new).consumerMainThread(ReturnPacket::handle).add();
-        CHANNEL.messageBuilder(LevelUpPacket.class, 5).encoder(LevelUpPacket::write).decoder(LevelUpPacket::new).consumerMainThread(LevelUpPacket::handle).add();
+        CHANNEL.messageBuilder(LevelUpRequestPacket.class, 5).encoder(LevelUpRequestPacket::write).decoder(LevelUpRequestPacket::new).consumerMainThread(LevelUpRequestPacket::handle).add();
+        CHANNEL.messageBuilder(LevelUpResponsePacket.class, 6).encoder(LevelUpResponsePacket::write).decoder(LevelUpResponsePacket::new).consumerMainThread(LevelUpResponsePacket::handle).add();
     }
 }
 

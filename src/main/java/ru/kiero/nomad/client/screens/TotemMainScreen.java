@@ -1,6 +1,7 @@
 package ru.kiero.nomad.client.screens;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
@@ -11,7 +12,7 @@ import ru.kiero.nomad.Nomad;
 import ru.kiero.nomad.api.GuiAPI;
 import ru.kiero.nomad.data.CampData;
 import ru.kiero.nomad.entity.RelationStage;
-import ru.kiero.nomad.networking.LevelUpPacket;
+import ru.kiero.nomad.networking.LevelUpRequestPacket;
 import ru.kiero.nomad.networking.NomadNetworking;
 import ru.kiero.nomad.networking.PresentPacket;
 
@@ -166,6 +167,6 @@ public class TotemMainScreen extends Screen {
     }
 
     private void onLevelUpClick(Button button) {
-        NomadNetworking.CHANNEL.sendToServer(new LevelUpPacket());
+        NomadNetworking.CHANNEL.sendToServer(new LevelUpRequestPacket(blockPos));
     }
 }
